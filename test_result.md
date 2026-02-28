@@ -282,14 +282,10 @@ metadata:
   run_ui: false
 
 test_plan:
-  current_focus:
-    - "Audio extraction with yt-dlp"
-    - "Groq Whisper transcription"
-    - "Groq Llama 3.3 fact-checking"
-    - "Sarvam TTS audio generation"
+  current_focus: []
   stuck_tasks: []
   test_all: false
-  test_priority: "high_first"
+  test_priority: "completed"
 
 agent_communication:
   - agent: "main"
