@@ -377,7 +377,7 @@ def fact_check_transcript(transcript: str, language_code: str) -> dict:
     
     lang_key, language_name = LANGUAGE_MAP.get(language_code, ("hindi", "Hindi"))
     
-    system_prompt = """You are an expert fact-checker with broad knowledge across topics including science, history, current affairs, technology, health, finance, and general knowledge. You verify claims against established facts and scientific consensus. You are concise and precise.
+    system_prompt = """You are an expert fact-checker with broad knowledge across topics including science, history, current affairs, technology, health, finance, and general knowledge. You verify claims against established facts and scientific consensus. You provide thorough, educational explanations that help users understand the truth.
 
 Always return ONLY valid JSON. No explanation outside the JSON object."""
 
@@ -387,15 +387,20 @@ Video transcript:
 {transcript}
 \"\"\"
 
-Analyze the main factual claim made in this video. This could be about any topic - health, science, history, news, technology, etc.
+Analyze the main factual claim made in this video thoroughly. This could be about any topic - health, science, history, news, technology, etc.
 
 Return ONLY this JSON with no other text:
 {{
-  "claim": "one sentence summary of the main factual claim being made",
+  "claim": "One clear sentence summarizing the main factual claim being made",
   "verdict": "TRUE" or "FALSE" or "MISLEADING" or "PARTIALLY_TRUE",
   "confidence": integer between 0 and 100,
-  "reason": "2-3 sentences max explaining your verdict with facts/evidence in simple language",
-  "verdict_{lang_key}": "The verdict as a natural spoken sentence in {language_name}. Start with the verdict word, then reason briefly. Max 2 sentences."
+  "category": "health" or "science" or "history" or "technology" or "finance" or "news" or "general",
+  "key_points": ["Point 1 from video", "Point 2 from video", "Point 3 from video"],
+  "reason": "2-3 sentences explaining your verdict with specific facts/evidence",
+  "fact_details": "A detailed paragraph (4-5 sentences) explaining the actual facts about this topic. What does science/research/experts actually say? Include specific details, numbers, or studies if relevant.",
+  "what_to_know": "2-3 sentences of practical advice - what should the viewer actually do or believe based on verified facts?",
+  "sources_note": "Brief note about what type of sources support the correct information (e.g., 'Based on WHO guidelines', 'According to peer-reviewed research', 'Historical records show')",
+  "verdict_{lang_key}": "The verdict as a natural spoken sentence in {language_name}. Start with the verdict word, then give a brief explanation. Max 2-3 sentences."
 }}
 """
 
@@ -406,7 +411,7 @@ Return ONLY this JSON with no other text:
             {"role": "user", "content": user_prompt}
         ],
         temperature=0.3,
-        max_tokens=1000,
+        max_tokens=1500,
     )
     
     response_text = response.choices[0].message.content.strip()
