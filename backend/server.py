@@ -171,11 +171,6 @@ async def extract_audio_rapidapi(video_id: str, output_dir: str) -> str:
                 raise Exception(f"RapidAPI request failed: {response.status_code} - {response.text}")
         
         raise Exception("Video processing timed out. Please try again later.")
-            else:
-                error_msg = data.get("msg", "Unknown error from RapidAPI")
-                raise Exception(f"RapidAPI error: {error_msg}")
-        else:
-            raise Exception(f"RapidAPI request failed: {response.status_code} - {response.text}")
 
 def transcribe_audio(audio_path: str) -> str:
     """Transcribe audio using Groq Whisper"""
