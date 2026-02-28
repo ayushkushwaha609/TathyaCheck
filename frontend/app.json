@@ -18,61 +18,7 @@
         "backgroundColor": "#0F172A"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.sachcheck.app",
-      "intentFilters": [
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "*.instagram.com",
-              "pathPrefix": "/reel"
-            },
-            {
-              "scheme": "https",
-              "host": "*.instagram.com",
-              "pathPrefix": "/reels"
-            },
-            {
-              "scheme": "https",
-              "host": "www.instagram.com",
-              "pathPrefix": "/reel"
-            }
-          ],
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "VIEW",
-          "autoVerify": true,
-          "data": [
-            {
-              "scheme": "https",
-              "host": "youtube.com",
-              "pathPrefix": "/shorts"
-            },
-            {
-              "scheme": "https",
-              "host": "www.youtube.com",
-              "pathPrefix": "/shorts"
-            },
-            {
-              "scheme": "https",
-              "host": "youtu.be"
-            }
-          ],
-          "category": ["BROWSABLE", "DEFAULT"]
-        },
-        {
-          "action": "SEND",
-          "category": ["DEFAULT"],
-          "data": [
-            {
-              "mimeType": "text/plain"
-            }
-          ]
-        }
-      ]
+      "package": "com.sachcheck.app"
     },
     "web": {
       "bundler": "metro",
