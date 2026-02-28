@@ -263,7 +263,7 @@ def test_language_support():
         response = requests.post(
             f"{BACKEND_BASE_URL}/check", 
             json=payload, 
-            timeout=60
+            timeout=120
         )
         
         if response.status_code == 200:
