@@ -71,6 +71,12 @@ class CheckResponse(BaseModel):
     reason: str
     verdict_text: str
     audio_base64: Optional[str] = None
+    # Enhanced context fields
+    category: str = "general"  # health, science, history, technology, finance, news, general
+    key_points: list = []  # Main points extracted from the video
+    fact_details: str = ""  # Detailed explanation of facts
+    what_to_know: str = ""  # What the user should know
+    sources_note: str = ""  # Note about verification sources
 
 class ErrorResponse(BaseModel):
     error: str
