@@ -101,3 +101,185 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+
+user_problem_statement: |
+  SachCheck - Health Claim Fact-Checking App
+  User shares an Instagram or YouTube reel link about food/health. 
+  The app extracts the video's audio, transcribes it, fact-checks the health claims using an LLM, 
+  and reads the verdict aloud in the user's regional Indian language using Sarvam AI's voice model.
+
+backend:
+  - task: "Health endpoint"
+    implemented: true
+    working: true
+    file: "server.py"
+    stuck_count: 0
+    priority: "low"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "GET /api/health returns {status: ok}"
+
+  - task: "URL validation (Instagram/YouTube)"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Validates URLs contain instagram.com or youtube.com"
+
+  - task: "Audio extraction with yt-dlp"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Uses yt-dlp to extract audio from YouTube/Instagram videos"
+
+  - task: "Groq Whisper transcription"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Sends audio to Groq Whisper API for transcription"
+
+  - task: "Groq Llama 3.3 fact-checking"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Uses Llama 3.3 70B for health claim fact-checking"
+
+  - task: "Sarvam TTS audio generation"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Generates TTS audio in regional Indian languages"
+
+  - task: "In-memory caching"
+    implemented: true
+    working: "NA"
+    file: "server.py"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Caches results by URL + language hash"
+
+frontend:
+  - task: "Home screen UI"
+    implemented: true
+    working: true
+    file: "app/index.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: false
+    status_history:
+      - working: true
+        agent: "main"
+        comment: "URL input, language picker, Check button - all rendering correctly"
+
+  - task: "Language picker modal"
+    implemented: true
+    working: "NA"
+    file: "components/LanguagePicker.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "6 Indian languages supported"
+
+  - task: "Loading overlay"
+    implemented: true
+    working: "NA"
+    file: "components/LoadingOverlay.tsx"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Animated loading with Hindi messages"
+
+  - task: "Result screen with verdict"
+    implemented: true
+    working: "NA"
+    file: "app/result.tsx"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Color-coded verdict card, audio playback"
+
+  - task: "Zustand state management"
+    implemented: true
+    working: "NA"
+    file: "store/useCheckStore.ts"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "API calls and state handling"
+
+metadata:
+  created_by: "main_agent"
+  version: "1.0"
+  test_sequence: 1
+  run_ui: false
+
+test_plan:
+  current_focus:
+    - "Audio extraction with yt-dlp"
+    - "Groq Whisper transcription"
+    - "Groq Llama 3.3 fact-checking"
+    - "Sarvam TTS audio generation"
+  stuck_tasks: []
+  test_all: false
+  test_priority: "high_first"
+
+agent_communication:
+  - agent: "main"
+    message: |
+      SachCheck MVP implementation complete.
+      Backend: FastAPI with full pipeline (yt-dlp -> Groq Whisper -> Llama 3.3 -> Sarvam TTS)
+      Frontend: Expo with home screen, result screen, language picker
+      
+      Please test the /api/check endpoint with a real YouTube Shorts URL.
+      Test with a health/food related video to see fact-checking in action.
+      
+      API Keys configured:
+      - GROQ_API_KEY: [REDACTED]
+      - SARVAM_API_KEY: [REDACTED]
