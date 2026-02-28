@@ -131,11 +131,17 @@ def test_check_endpoint_valid_url():
                 log_test("Valid YouTube URL", "FAIL", "Audio_base64 must be string or null")
                 return False
             
-            # Log success with key details
-            message = f"""Response structure valid:
-   Claim: {data['claim'][:100]}...
+            # Log success with key details including enhanced context fields
+            message = f"""✅ ALL ENHANCED CONTEXT FIELDS VALIDATED:
+   Claim: {data['claim'][:80]}...
    Verdict: {data['verdict']} (Confidence: {data['confidence']}%)
-   Audio: {'Present' if data.get('audio_base64') else 'None'}"""
+   Category: {data['category']}
+   Key Points: {len(data['key_points'])} points provided
+   Fact Details: {len(data['fact_details'])} chars
+   What to Know: {len(data['what_to_know'])} chars
+   Sources Note: {len(data['sources_note'])} chars
+   Audio Base64: {'Present' if data.get('audio_base64') else 'None'}
+   Verdict Text: {len(data['verdict_text'])} chars"""
             
             log_test("Valid YouTube URL", "PASS", message)
             return data  # Return data for cache testing
