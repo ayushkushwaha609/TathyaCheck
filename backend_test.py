@@ -335,6 +335,9 @@ def run_all_tests():
     # Test 3: Invalid URL validation
     results["invalid_url"] = test_check_endpoint_invalid_url()
     
+    # Test 4: Missing body validation
+    results["missing_body"] = test_missing_body()
+    
     # Test 4: Cache functionality (if previous test succeeded)
     results["cache"] = test_cache_functionality(original_data)
     
