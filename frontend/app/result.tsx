@@ -70,6 +70,7 @@ export default function ResultScreen() {
         soundRef.current.unloadAsync();
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
   const togglePlayback = async () => {
