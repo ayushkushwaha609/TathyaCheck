@@ -79,7 +79,13 @@ export default function HomeScreen() {
           {/* Input Section */}
           <View style={styles.inputSection}>
             <Text style={styles.inputLabel}>Paste Video Link</Text>
-            <View style={styles.inputContainer}>
+            <Animated.View 
+              style={[
+                styles.inputContainer,
+                { transform: [{ translateX: shakeAnim }] },
+                url && prevUrl.current === '' && styles.inputContainerHighlight
+              ]}
+            >
               <Ionicons
                 name="link"
                 size={20}
@@ -101,7 +107,7 @@ export default function HomeScreen() {
                   <Ionicons name="close-circle" size={20} color="#6B7280" />
                 </TouchableOpacity>
               )}
-            </View>
+            </Animated.View>
 
             {/* Error Message */}
             {error && (
