@@ -569,7 +569,12 @@ async def check_claim(request: CheckRequest):
                 confidence=result["confidence"],
                 reason=result["reason"],
                 verdict_text=result["verdict_text"],
-                audio_base64=audio_base64
+                audio_base64=audio_base64,
+                category=result.get("category", "general"),
+                key_points=result.get("key_points", []),
+                fact_details=result.get("fact_details", ""),
+                what_to_know=result.get("what_to_know", ""),
+                sources_note=result.get("sources_note", ""),
             )
             
             # Store in cache
