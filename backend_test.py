@@ -10,8 +10,8 @@ import time
 import sys
 import os
 
-# Get backend URL from frontend env file
-BACKEND_BASE_URL = "https://mobile-project-draft.preview.emergentagent.com/api"
+# Production backend URL for SachCheck
+BACKEND_BASE_URL = "https://claim-check.preview.emergentagent.com/api"
 
 # Test data
 TEST_YOUTUBE_URL = "https://www.youtube.com/shorts/8kbFtUmgGuQ"
