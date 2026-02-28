@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -28,6 +29,24 @@ export default function HomeScreen() {
     error,
     runCheck,
   } = useCheckStore();
+  
+  // Animation for when URL is received via share
+  const shakeAnim = useRef(new Animated.Value(0)).current;
+  const prevUrl = useRef(url);
+  
+  // Animate when URL changes (e.g., received via share)
+  useEffect(() => {
+    if (url && url !== prevUrl.current && prevUrl.current === '') {
+      // URL was just set (likely from share)
+      Animated.sequence([
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: -10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 10, duration: 100, useNativeDriver: true }),
+        Animated.timing(shakeAnim, { toValue: 0, duration: 100, useNativeDriver: true }),
+      ]).start();
+    }
+    prevUrl.current = url;
+  }, [url, shakeAnim]);
 
   const handleCheck = async () => {
     Keyboard.dismiss();
