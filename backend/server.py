@@ -508,11 +508,12 @@ async def check_claim(request: CheckRequest):
     if language_code not in LANGUAGE_MAP:
         language_code = "hi-IN"  # Default to Hindi
     
-    # Check cache
+    # Check MongoDB cache
     cache_key = get_cache_key(url, language_code)
-    if cache_key in cache:
-        logger.info(f"Cache hit for {cache_key}")
-        return cache[cache_key]
+    cached = await checks_collection.find_one({"cache_key": cache_key}, {"_id": 0})
+    if cached:
+        logger.info(f"MongoDB cache hit for {cache_key}")
+        return CheckResponse(**{k: v for k, v in cached.items() if k != "cache_key" and k != "created_at"})
     
     logger.info(f"Processing URL: {url} with language: {language_code}")
     
