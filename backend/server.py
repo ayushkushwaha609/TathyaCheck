@@ -609,6 +609,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.on_event("startup")
+async def startup_db():
+    await checks_collection.create_index("cache_key", unique=True)
+
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
