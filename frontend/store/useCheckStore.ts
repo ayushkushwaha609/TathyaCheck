@@ -10,6 +10,12 @@ export interface CheckResult {
   reason: string;
   verdict_text: string;
   audio_base64: string | null;
+  // Enhanced context fields
+  category: string;
+  key_points: string[];
+  fact_details: string;
+  what_to_know: string;
+  sources_note: string;
 }
 
 interface CheckStore {
