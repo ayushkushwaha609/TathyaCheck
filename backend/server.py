@@ -13,6 +13,7 @@ import json
 import re
 import httpx
 from groq import Groq
+from urllib.parse import quote as url_quote
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
