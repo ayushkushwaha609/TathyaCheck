@@ -59,7 +59,8 @@
           "androidMultiIntentFilters": ["text/*"],
           "androidMainActivityAttributes": {
             "android:launchMode": "singleTask"
-          }
+          },
+          "disableIOS": true
         }
       ]
     ],
