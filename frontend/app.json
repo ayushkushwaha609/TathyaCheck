@@ -18,7 +18,23 @@
         "backgroundColor": "#0F172A"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tathya.app"
+      "package": "com.tathya.app",
+      "intentFilters": [
+        {
+          "action": "SEND",
+          "category": ["DEFAULT"],
+          "data": [
+            { "mimeType": "text/plain" }
+          ]
+        },
+        {
+          "action": "SEND_MULTIPLE",
+          "category": ["DEFAULT"],
+          "data": [
+            { "mimeType": "text/plain" }
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -40,7 +56,10 @@
         "expo-share-intent",
         {
           "androidIntentFilters": ["text/*"],
-          "androidMultiIntentFilters": ["text/*"]
+          "androidMultiIntentFilters": ["text/*"],
+          "androidMainActivityAttributes": {
+            "android:launchMode": "singleTask"
+          }
         }
       ]
     ],
