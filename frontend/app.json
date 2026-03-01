@@ -35,6 +35,13 @@
           "resizeMode": "contain",
           "backgroundColor": "#0F172A"
         }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "androidIntentFilters": ["text/*"],
+          "androidMultiIntentFilters": ["text/*"]
+        }
       ]
     ],
     "experiments": {
