@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCheckStore } from '../store/useCheckStore';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
+import { useShareIntent } from 'expo-share-intent';
+
+function extractUrl(text: string): string {
+  const match = text.match(/https?:\/\/[^\s]+/);
+  return match ? match[0] : text.trim();
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -28,6 +34,32 @@ export default function HomeScreen() {
     error,
     runCheck,
   } = useCheckStore();
+
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntent();
+  const hasHandledShareRef = useRef(false);
+
+  // Handle incoming share intent — auto-fill URL and start fact-check
+  useEffect(() => {
+    if (hasShareIntent && shareIntent && !hasHandledShareRef.current) {
+      const sharedText = shareIntent.text || shareIntent.webUrl || '';
+      if (sharedText) {
+        const cleanUrl = extractUrl(sharedText);
+        setUrl(cleanUrl);
+        hasHandledShareRef.current = true;
+        resetShareIntent();
+        // Auto-trigger fact check after a short delay for state to settle
+        setTimeout(async () => {
+          const store = useCheckStore.getState();
+          store.setUrl(cleanUrl);
+          const success = await store.runCheck();
+          if (success) {
+            router.push('/result');
+          }
+          hasHandledShareRef.current = false;
+        }, 300);
+      }
+    }
+  }, [hasShareIntent, shareIntent]);
 
   const handleCheck = async () => {
     Keyboard.dismiss();
