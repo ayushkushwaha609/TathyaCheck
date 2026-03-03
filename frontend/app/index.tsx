@@ -9,11 +9,11 @@ import {
   Platform,
   ScrollView,
   Keyboard,
-  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { useShareIntentContext } from 'expo-share-intent';
 import { useCheckStore } from '../store/useCheckStore';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
@@ -33,42 +33,58 @@ export default function HomeScreen() {
     isLoading,
     error,
     runCheck,
+    reset,
   } = useCheckStore();
 
-  const hasHandledShareRef = useRef(false);
+  // Use expo-share-intent context for receiving shared content
+  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
+  const isProcessingShareRef = useRef(false);
 
-  // Handle incoming share intent via Linking (for Android ACTION_SEND)
+  // Handle incoming share intent
   useEffect(() => {
-    const handleSharedUrl = (sharedText: string) => {
-      if (sharedText && !hasHandledShareRef.current) {
-        const cleanUrl = extractUrl(sharedText);
-        if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
-          hasHandledShareRef.current = true;
-          const store = useCheckStore.getState();
-          store.setUrl(cleanUrl);
-          setTimeout(async () => {
-            const success = await useCheckStore.getState().runCheck();
-            if (success) {
-              router.push('/result');
-            }
-            hasHandledShareRef.current = false;
-          }, 300);
-        }
+    const handleShareIntent = async () => {
+      // Prevent duplicate processing
+      if (!hasShareIntent || isProcessingShareRef.current) return;
+
+      // Get shared text (URL might be in text or webUrl property)
+      const sharedText = shareIntent?.text || shareIntent?.webUrl || '';
+      if (!sharedText) {
+        resetShareIntent();
+        return;
+      }
+
+      // Extract URL from shared text
+      const cleanUrl = extractUrl(sharedText);
+      
+      // Validate it's from Instagram or YouTube
+      if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
+        isProcessingShareRef.current = true;
+        
+        // Reset any previous state first
+        reset();
+        
+        // Set the URL in store
+        setUrl(cleanUrl);
+        
+        // Clear share intent to prevent re-processing
+        resetShareIntent();
+        
+        // Auto-trigger the search after a short delay to allow state to update
+        setTimeout(async () => {
+          const success = await useCheckStore.getState().runCheck();
+          if (success) {
+            router.push('/result');
+          }
+          isProcessingShareRef.current = false;
+        }, 300);
+      } else {
+        // Clear invalid share intent
+        resetShareIntent();
       }
     };
 
-    // Check if app was opened via share
-    Linking.getInitialURL().then((initialUrl) => {
-      if (initialUrl) handleSharedUrl(initialUrl);
-    });
-
-    // Listen for new share intents while app is open
-    const subscription = Linking.addEventListener('url', ({ url: incomingUrl }) => {
-      handleSharedUrl(incomingUrl);
-    });
-
-    return () => subscription.remove();
-  }, []);
+    handleShareIntent();
+  }, [hasShareIntent, shareIntent]);
 
   const handleCheck = async () => {
     Keyboard.dismiss();

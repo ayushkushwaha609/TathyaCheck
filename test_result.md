@@ -108,7 +108,7 @@ user_problem_statement: |
   The app extracts the video's audio, transcribes it, fact-checks the health claims using an LLM, 
   and reads the verdict aloud in the user's regional Indian language using Sarvam AI's voice model.
   
-  Production API testing at: https://claim-check.preview.emergentagent.com
+  Production API testing at: https://reel-link-handler.preview.emergentagent.com
 
 backend:
   - task: "Production API /api/health endpoint"
@@ -121,7 +121,7 @@ backend:
     status_history:
       - working: true
         agent: "testing"
-        comment: "✅ PRODUCTION CONFIRMED: Health endpoint at https://claim-check.preview.emergentagent.com/api/health returns {'status': 'ok'} correctly"
+        comment: "✅ PRODUCTION CONFIRMED: Health endpoint at https://reel-link-handler.preview.emergentagent.com/api/health returns {'status': 'ok'} correctly"
 
   - task: "Production API /api/check with enhanced context fields"
     implemented: true
@@ -299,7 +299,7 @@ agent_communication:
       6. Multi-Language Support - Hindi & Tamil working perfectly ✓
       
       📊 PRODUCTION PERFORMANCE:
-      - API URL: https://claim-check.preview.emergentagent.com/api
+      - API URL: https://reel-link-handler.preview.emergentagent.com/api
       - Response Time: ~30-60 seconds for full pipeline
       - Caching: ~0.2 seconds for repeated requests
       - Audio Generation: Base64 TTS working in all tested languages

@@ -11,7 +11,7 @@ import sys
 import os
 
 # Production backend URL for SachCheck
-BACKEND_BASE_URL = "https://claim-check.preview.emergentagent.com/api"
+BACKEND_BASE_URL = "https://reel-link-handler.preview.emergentagent.com/api"
 
 # Test data
 TEST_YOUTUBE_URL = "https://www.youtube.com/shorts/8kbFtUmgGuQ"
