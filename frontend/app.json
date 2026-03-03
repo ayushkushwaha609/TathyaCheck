@@ -36,17 +36,7 @@
           "backgroundColor": "#0F172A"
         }
       ],
-      [
-        "expo-share-intent",
-        {
-          "androidIntentFilters": ["text/*"],
-          "androidMultiIntentFilters": ["text/*"],
-          "iosActivationRules": {
-            "NSExtensionActivationSupportsWebURLWithMaxCount": 1,
-            "NSExtensionActivationSupportsText": true
-          }
-        }
-      ]
+      "expo-share-intent"
     ],
     "experiments": {
       "typedRoutes": true
