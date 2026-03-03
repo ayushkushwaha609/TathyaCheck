@@ -491,6 +491,18 @@ Return ONLY this JSON with no other text:
 async def synthesize_speech(text: str, language_code: str) -> Optional[str]:
     """Convert text to speech using Sarvam AI TTS"""
     try:
+        # Sarvam TTS has a 500 character limit - truncate if needed
+        # But keep it meaningful by cutting at sentence boundaries
+        if len(text) > 480:
+            # Try to cut at a sentence boundary
+            truncated = text[:480]
+            # Find last sentence ending
+            last_period = max(truncated.rfind('।'), truncated.rfind('.'), truncated.rfind('!'), truncated.rfind('?'))
+            if last_period > 200:  # Make sure we have reasonable content
+                text = truncated[:last_period + 1]
+            else:
+                text = truncated + '...'
+        
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.sarvam.ai/text-to-speech",

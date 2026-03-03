@@ -40,8 +40,9 @@ export default function ResultScreen() {
 
         if (result.audio_base64) {
           const sound = new Audio.Sound();
+          // Sarvam TTS returns WAV format audio
           await sound.loadAsync({
-            uri: `data:audio/mp3;base64,${result.audio_base64}`,
+            uri: `data:audio/wav;base64,${result.audio_base64}`,
           });
           soundRef.current = sound;
           setAudioLoaded(true);
