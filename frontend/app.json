@@ -18,7 +18,16 @@
         "backgroundColor": "#0F172A"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tathya.app"
+      "package": "com.tathya.app",
+      "intentFilters": [
+        {
+          "action": "android.intent.action.SEND",
+          "category": ["android.intent.category.DEFAULT"],
+          "data": [
+            { "mimeType": "text/plain" }
+          ]
+        }
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -35,8 +44,7 @@
           "resizeMode": "contain",
           "backgroundColor": "#0F172A"
         }
-      ],
-      "expo-share-intent"
+      ]
     ],
     "experiments": {
       "typedRoutes": true

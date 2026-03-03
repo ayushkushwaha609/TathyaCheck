@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useShareIntentContext } from 'expo-share-intent';
+import * as Linking from 'expo-linking';
 import { useCheckStore } from '../store/useCheckStore';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
@@ -36,24 +36,13 @@ export default function HomeScreen() {
     reset,
   } = useCheckStore();
 
-  // Use expo-share-intent context for receiving shared content
-  const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const isProcessingShareRef = useRef(false);
 
-  // Handle incoming share intent
+  // Handle incoming share intent via deep linking
   useEffect(() => {
-    const handleShareIntent = async () => {
-      // Prevent duplicate processing
-      if (!hasShareIntent || isProcessingShareRef.current) return;
+    const handleSharedUrl = async (sharedText: string) => {
+      if (!sharedText || isProcessingShareRef.current) return;
 
-      // Get shared text (URL might be in text or webUrl property)
-      const sharedText = shareIntent?.text || shareIntent?.webUrl || '';
-      if (!sharedText) {
-        resetShareIntent();
-        return;
-      }
-
-      // Extract URL from shared text
       const cleanUrl = extractUrl(sharedText);
       
       // Validate it's from Instagram or YouTube
@@ -66,9 +55,6 @@ export default function HomeScreen() {
         // Set the URL in store
         setUrl(cleanUrl);
         
-        // Clear share intent to prevent re-processing
-        resetShareIntent();
-        
         // Auto-trigger the search after a short delay to allow state to update
         setTimeout(async () => {
           const success = await useCheckStore.getState().runCheck();
@@ -77,14 +63,25 @@ export default function HomeScreen() {
           }
           isProcessingShareRef.current = false;
         }, 300);
-      } else {
-        // Clear invalid share intent
-        resetShareIntent();
       }
     };
 
-    handleShareIntent();
-  }, [hasShareIntent, shareIntent]);
+    // Check if app was opened via share (initial URL)
+    Linking.getInitialURL().then((initialUrl) => {
+      if (initialUrl) {
+        handleSharedUrl(initialUrl);
+      }
+    });
+
+    // Listen for new share intents while app is open
+    const subscription = Linking.addEventListener('url', ({ url: incomingUrl }) => {
+      // Reset state and handle the new URL
+      reset();
+      handleSharedUrl(incomingUrl);
+    });
+
+    return () => subscription.remove();
+  }, []);
 
   const handleCheck = async () => {
     Keyboard.dismiss();
