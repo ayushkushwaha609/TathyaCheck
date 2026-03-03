@@ -7,7 +7,6 @@
     "icon": "./assets/images/icon.png",
     "scheme": "tathya",
     "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.tathya.app"
@@ -18,16 +17,7 @@
         "backgroundColor": "#0F172A"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.tathya.app",
-      "intentFilters": [
-        {
-          "action": "android.intent.action.SEND",
-          "category": ["android.intent.category.DEFAULT"],
-          "data": [
-            { "mimeType": "text/plain" }
-          ]
-        }
-      ]
+      "package": "com.tathya.app"
     },
     "web": {
       "bundler": "metro",
@@ -43,6 +33,12 @@
           "imageWidth": 200,
           "resizeMode": "contain",
           "backgroundColor": "#0F172A"
+        }
+      ],
+      [
+        "expo-share-intent",
+        {
+          "disableIOS": true
         }
       ]
     ],

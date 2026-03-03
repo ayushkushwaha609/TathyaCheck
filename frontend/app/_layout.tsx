@@ -1,23 +1,59 @@
-import React from 'react';
-import { Stack } from 'expo-router';
+import React, { useEffect } from 'react';
+import { Stack, useRouter, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
+import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
+import { useCheckStore } from '../store/useCheckStore';
+
+// Component to handle share intent navigation
+function ShareIntentHandler({ children }: { children: React.ReactNode }) {
+  const router = useRouter();
+  const segments = useSegments();
+  const { hasShareIntent } = useShareIntentContext();
+  const { reset } = useCheckStore();
+  const processingRef = React.useRef(false);
+
+  useEffect(() => {
+    // When a new share intent comes in and we're on the result screen,
+    // navigate back to home to handle the new share
+    if (hasShareIntent && !processingRef.current) {
+      const currentScreen = segments[0] || 'index';
+      
+      if (currentScreen === 'result') {
+        processingRef.current = true;
+        // Reset state and navigate to home - the home screen will handle the share
+        reset();
+        router.replace('/');
+        // Allow processing again after a short delay
+        setTimeout(() => {
+          processingRef.current = false;
+        }, 500);
+      }
+    }
+  }, [hasShareIntent, segments]);
+
+  return <>{children}</>;
+}
 
 export default function RootLayout() {
   return (
-    <View style={styles.container}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: '#0F172A' },
-          animation: 'slide_from_right',
-        }}
-      >
-        <Stack.Screen name="index" />
-        <Stack.Screen name="result" />
-      </Stack>
-    </View>
+    <ShareIntentProvider>
+      <ShareIntentHandler>
+        <View style={styles.container}>
+          <StatusBar style="light" />
+          <Stack
+            screenOptions={{
+              headerShown: false,
+              contentStyle: { backgroundColor: '#0F172A' },
+              animation: 'slide_from_right',
+            }}
+          >
+            <Stack.Screen name="index" />
+            <Stack.Screen name="result" />
+          </Stack>
+        </View>
+      </ShareIntentHandler>
+    </ShareIntentProvider>
   );
 }
 
