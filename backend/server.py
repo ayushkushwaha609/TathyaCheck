@@ -15,6 +15,7 @@ import httpx
 from groq import Groq
 from urllib.parse import quote as url_quote, urlparse
 from datetime import datetime, timezone
+import time
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -647,6 +648,7 @@ async def check_claim(request: Request, body: CheckRequest):
         logger.info(f"MongoDB cache hit for {cache_key}")
         return CheckResponse(**{k: v for k, v in cached.items() if k != "cache_key" and k != "created_at"})
     
+    pipeline_start = time.time()
     logger.info(f"Processing URL: {url} with language: {language_code}")
     
     # Determine platform and extract accordingly
@@ -657,6 +659,7 @@ async def check_claim(request: Request, body: CheckRequest):
     with tempfile.TemporaryDirectory() as temp_dir:
         try:
             # Step 1: Extract audio based on platform
+            step1_start = time.time()
             if is_instagram:
                 logger.info("Processing Instagram Reel...")
                 normalized_url = extract_instagram_reel_url(url)
@@ -675,10 +678,15 @@ async def check_claim(request: Request, body: CheckRequest):
                     status_code=422,
                     detail={"error": "unsupported_platform", "message": "Only Instagram and YouTube are supported."}
                 )
+            step1_dur = time.time() - step1_start
+            logger.info(f"⏱ Step 1 - Audio extraction (RapidAPI): {step1_dur:.2f}s")
             
             # Step 2: Transcribe
+            step2_start = time.time()
             logger.info("Transcribing audio...")
             transcript = transcribe_audio(audio_path)
+            step2_dur = time.time() - step2_start
+            logger.info(f"⏱ Step 2 - Transcription (Groq Whisper): {step2_dur:.2f}s")
             
             if not transcript or len(transcript.strip()) < 10:
                 raise HTTPException(
@@ -689,14 +697,23 @@ async def check_claim(request: Request, body: CheckRequest):
             logger.info(f"Transcript: {transcript[:200]}...")
             
             # Step 3: Fact-check
+            step3_start = time.time()
             logger.info("Fact-checking...")
             result = fact_check_transcript(transcript, language_code)
+            step3_dur = time.time() - step3_start
+            logger.info(f"⏱ Step 3 - Fact-check (Groq Llama): {step3_dur:.2f}s")
             
             # Step 4: Generate TTS with the more elaborate regional language text
+            step4_start = time.time()
             logger.info("Generating speech...")
             # Use the regional language verdict for TTS (more elaborate version)
             audio_text = result.get("verdict_text_regional", result["verdict_text"])
             audio_base64 = await synthesize_speech(audio_text, language_code)
+            step4_dur = time.time() - step4_start
+            logger.info(f"⏱ Step 4 - TTS (Sarvam AI): {step4_dur:.2f}s")
+            
+            total_dur = time.time() - pipeline_start
+            logger.info(f"⏱ TOTAL pipeline: {total_dur:.2f}s | Breakdown: audio={step1_dur:.2f}s, transcribe={step2_dur:.2f}s, fact-check={step3_dur:.2f}s, tts={step4_dur:.2f}s")
             
             # Build response
             response = CheckResponse(
