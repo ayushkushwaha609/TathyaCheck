@@ -521,7 +521,7 @@ Return ONLY this JSON with no other text:
         combined_verdict_text = f"{verdict_text_english}\n\n{verdict_text_regional}"
         
         # Ensure confidence is not a round number (add some variation if it is)
-        confidence = result.get("confidence", 50)
+        confidence = int(result.get("confidence", 50))
         if confidence % 10 == 0 and confidence > 0 and confidence < 100:
             import random
             # Add small random variation to make it more realistic
@@ -757,13 +757,17 @@ async def check_claim(request: Request, body: CheckRequest):
                 why_misleading_regional=result.get("why_misleading_regional", ""),
             )
             
-            # Store in MongoDB cache
+            # Store in MongoDB cache (upsert to handle concurrent requests for same URL)
             cache_doc = response.model_dump()
             cache_doc["cache_key"] = cache_key
             cache_doc["url"] = url
             cache_doc["language_code"] = language_code
             cache_doc["created_at"] = datetime.now(timezone.utc).isoformat()
-            await checks_collection.insert_one(cache_doc)
+            await checks_collection.update_one(
+                {"cache_key": cache_key},
+                {"$set": cache_doc},
+                upsert=True
+            )
             
             return response
             
