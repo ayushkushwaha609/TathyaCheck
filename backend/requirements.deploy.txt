@@ -8,3 +8,4 @@ python-dotenv==1.2.1
 slowapi==0.1.9
 uvicorn==0.25.0
 starlette==0.37.2
+gunicorn==23.0.0

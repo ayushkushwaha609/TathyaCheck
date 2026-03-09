@@ -16,9 +16,10 @@ from groq import Groq
 from urllib.parse import quote as url_quote, urlparse
 from datetime import datetime, timezone
 import time
+import asyncio
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded
+from slowapi.errors import RateLimitExceeded 
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -40,6 +41,19 @@ groq_client = Groq(api_key=GROQ_API_KEY)
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
+
+# Shared httpx client for connection pooling (created on first use)
+_http_client: httpx.AsyncClient | None = None
+
+async def get_http_client() -> httpx.AsyncClient:
+    global _http_client
+    if _http_client is None or _http_client.is_closed:
+        _http_client = httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=10.0),
+            limits=httpx.Limits(max_connections=50, max_keepalive_connections=20),
+            follow_redirects=True,
+        )
+    return _http_client
 
 # Create the main app
 app = FastAPI(title="Tathya API", version="1.0.0")
@@ -147,7 +161,8 @@ async def extract_audio_instagram(url: str, output_dir: str) -> str:
     """Extract audio from Instagram Reel using RapidAPI"""
     logger.info(f"Fetching Instagram Reel via RapidAPI: {url}")
     
-    async with httpx.AsyncClient(timeout=90.0) as client:
+    client = await get_http_client()
+    if True:  # shared client — no context manager needed
         # Use instagram-reels-downloader-api (working API)
         try:
             logger.info("Trying instagram-reels-downloader-api...")
@@ -205,14 +220,14 @@ async def extract_audio_instagram(url: str, output_dir: str) -> str:
                                     f.write(media_response.content)
                                 logger.info(f"Video saved: {video_path}, size: {len(media_response.content)} bytes")
                                 
-                                # Extract audio using ffmpeg
-                                import subprocess
+                                # Extract audio using ffmpeg (non-blocking)
                                 try:
-                                    subprocess.run(
-                                        ["ffmpeg", "-i", video_path, "-vn", "-acodec", "libmp3lame", "-q:a", "4", audio_path, "-y"],
-                                        capture_output=True,
-                                        timeout=30
+                                    proc = await asyncio.create_subprocess_exec(
+                                        "ffmpeg", "-i", video_path, "-vn", "-acodec", "libmp3lame", "-q:a", "4", audio_path, "-y",
+                                        stdout=asyncio.subprocess.PIPE,
+                                        stderr=asyncio.subprocess.PIPE,
                                     )
+                                    await asyncio.wait_for(proc.communicate(), timeout=30)
                                     if os.path.exists(audio_path) and os.path.getsize(audio_path) > 1000:
                                         logger.info(f"Audio extracted: {audio_path}")
                                         return audio_path
@@ -259,7 +274,8 @@ async def extract_audio_rapidapi(video_id: str, output_dir: str) -> str:
     # Construct full YouTube URL
     youtube_url = f"https://www.youtube.com/watch?v={video_id}"
     
-    async with httpx.AsyncClient(timeout=120.0) as client:
+    client = await get_http_client()
+    if True:  # shared client — no context manager needed
         # Try youtube-mp310 API first (returns direct link as text)
         logger.info("Trying youtube-mp310 API...")
         try:
@@ -375,30 +391,29 @@ async def extract_audio_rapidapi(video_id: str, output_dir: str) -> str:
                     
                     elif status in ["processing", "in process"]:
                         logger.info(f"Video processing, waiting {retry_delay}s...")
-                        import asyncio
                         await asyncio.sleep(retry_delay)
                         continue
                     
             except Exception as e:
                 logger.warning(f"youtube-mp36 attempt {attempt + 1} failed: {e}")
             
-            import asyncio
             await asyncio.sleep(retry_delay)
         
         raise Exception("Could not extract audio. Please try a different video.")
 
-def transcribe_audio(audio_path: str) -> str:
-    """Transcribe audio using Groq Whisper"""
-    with open(audio_path, "rb") as audio_file:
-        transcription = groq_client.audio.transcriptions.create(
-            file=(os.path.basename(audio_path), audio_file.read()),
-            model="whisper-large-v3",
-            response_format="text",
-        )
-    return transcription
+async def transcribe_audio(audio_path: str) -> str:
+    """Transcribe audio using Groq Whisper (offloaded to thread to avoid blocking event loop)"""
+    def _sync_transcribe():
+        with open(audio_path, "rb") as audio_file:
+            return groq_client.audio.transcriptions.create(
+                file=(os.path.basename(audio_path), audio_file.read()),
+                model="whisper-large-v3",
+                response_format="text",
+            )
+    return await asyncio.to_thread(_sync_transcribe)
 
-def fact_check_transcript(transcript: str, language_code: str) -> dict:
-    """Fact-check the transcript using Groq Llama"""
+async def fact_check_transcript(transcript: str, language_code: str) -> dict:
+    """Fact-check the transcript using Groq Llama (offloaded to thread to avoid blocking event loop)"""
     # Truncate transcript to ~1500 tokens
     transcript = transcript[:6000]
     
@@ -448,15 +463,17 @@ Return ONLY this JSON with no other text:
 }}
 """
 
-    response = groq_client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_prompt}
-        ],
-        temperature=0.2,  # Lower temperature for more consistent, factual responses
-        max_tokens=4000,  # Increased for bilingual responses with longer scripts
-    )
+    def _sync_fact_check():
+        return groq_client.chat.completions.create(
+            model="llama-3.3-70b-versatile",
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.2,
+            max_tokens=4000,
+        )
+    response = await asyncio.to_thread(_sync_fact_check)
     
     response_text = response.choices[0].message.content.strip()
     
@@ -593,7 +610,8 @@ async def synthesize_speech(text: str, language_code: str) -> Optional[str]:
             else:
                 text = truncated + '...'
         
-        async with httpx.AsyncClient() as client:
+        client = await get_http_client()
+        if True:  # shared client
             response = await client.post(
                 "https://api.sarvam.ai/text-to-speech",
                 headers={"API-Subscription-Key": SARVAM_API_KEY},
@@ -684,7 +702,7 @@ async def check_claim(request: Request, body: CheckRequest):
             # Step 2: Transcribe
             step2_start = time.time()
             logger.info("Transcribing audio...")
-            transcript = transcribe_audio(audio_path)
+            transcript = await transcribe_audio(audio_path)
             step2_dur = time.time() - step2_start
             logger.info(f"⏱ Step 2 - Transcription (Groq Whisper): {step2_dur:.2f}s")
             
@@ -699,7 +717,7 @@ async def check_claim(request: Request, body: CheckRequest):
             # Step 3: Fact-check
             step3_start = time.time()
             logger.info("Fact-checking...")
-            result = fact_check_transcript(transcript, language_code)
+            result = await fact_check_transcript(transcript, language_code)
             step3_dur = time.time() - step3_start
             logger.info(f"⏱ Step 3 - Fact-check (Groq Llama): {step3_dur:.2f}s")
             
@@ -779,4 +797,7 @@ async def startup_db():
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
+    global _http_client
+    if _http_client and not _http_client.is_closed:
+        await _http_client.aclose()
     client.close()
