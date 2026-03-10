@@ -35,7 +35,7 @@ interface CheckStore {
   error: string | null;
   setUrl: (url: string) => void;
   setLanguageCode: (code: string) => void;
-  runCheck: () => Promise<boolean>;
+  runCheck: (urlOverride?: string) => Promise<boolean>;
   reset: () => void;
 }
 
@@ -50,11 +50,13 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
   
   setLanguageCode: (code: string) => set({ languageCode: code }),
 
-  runCheck: async () => {
-    const { url, languageCode, isLoading } = get();
+  runCheck: async (urlOverride?: string) => {
+    const { url: storeUrl, languageCode, isLoading } = get();
 
     // Prevent duplicate requests
     if (isLoading) return false;
+
+    const url = urlOverride || storeUrl;
     
     // Validate URL
     const urlPattern = /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i;

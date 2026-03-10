@@ -60,23 +60,18 @@ export default function HomeScreen() {
       if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
         isProcessingShareRef.current = true;
         
-        // Reset any previous state first
-        reset();
-        
-        // Set the URL in store (auto-populate)
+        // Set the URL in store (auto-populate the input field)
         setUrl(cleanUrl);
         
         // Clear share intent to prevent re-processing
         resetShareIntent();
         
-        // Auto-trigger the search after a short delay to allow state to update
-        setTimeout(async () => {
-          const success = await useCheckStore.getState().runCheck();
-          if (success) {
-            router.push('/result');
-          }
-          isProcessingShareRef.current = false;
-        }, 300);
+        // Pass URL directly to avoid race condition with store state
+        const success = await useCheckStore.getState().runCheck(cleanUrl);
+        if (success) {
+          router.push('/result');
+        }
+        isProcessingShareRef.current = false;
       } else {
         // Clear invalid share intent
         resetShareIntent();
