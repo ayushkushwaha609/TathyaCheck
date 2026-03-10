@@ -413,8 +413,31 @@ async def transcribe_audio(audio_path: str) -> str:
             )
     return await asyncio.to_thread(_sync_transcribe)
 
+async def extract_search_query(transcript: str) -> str:
+    """Extract the main claim from transcript in English for web searching"""
+    try:
+        def _sync_extract():
+            return groq_client.chat.completions.create(
+                model="llama-3.3-70b-versatile",
+                messages=[
+                    {"role": "system", "content": "Extract the main factual claim from this transcript in one short English sentence (max 15 words). Return ONLY the claim, nothing else."},
+                    {"role": "user", "content": transcript[:2000]}
+                ],
+                temperature=0.0,
+                max_tokens=50,
+            )
+        response = await asyncio.to_thread(_sync_extract)
+        query = response.choices[0].message.content.strip().strip('"')
+        logger.info(f"Extracted search query: {query}")
+        return query
+    except Exception as e:
+        logger.warning(f"Failed to extract search query: {e}")
+        return ""
+
 async def web_search(query: str) -> str:
     """Search the web using DuckDuckGo for fact-checking context"""
+    if not query:
+        return ""
     try:
         def _sync_search():
             with DDGS() as ddgs:
@@ -441,9 +464,9 @@ async def fact_check_transcript(transcript: str, language_code: str) -> dict:
     
     lang_key, language_name = LANGUAGE_MAP.get(language_code, ("hindi", "Hindi"))
     
-    # Step 1: Search the web for relevant facts about the transcript's claims
-    search_query = transcript[:300].replace('"', ' ').replace('\n', ' ')
-    web_context = await web_search(f"fact check: {search_query}")
+    # Step 1: Extract main claim in English and search the web
+    search_query = await extract_search_query(transcript)
+    web_context = await web_search(search_query)
     
     web_context_block = ""
     if web_context:
