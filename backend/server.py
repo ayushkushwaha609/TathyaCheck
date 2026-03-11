@@ -37,9 +37,13 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 SARVAM_API_KEY = os.environ.get('SARVAM_API_KEY')
 RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY')
 
-# Instagram API key rotation — tries each key in order until one works
+# API key rotation — tries each key in order until one works
 _keys_env = os.environ.get('RAPIDAPI_KEYS', '')
 RAPIDAPI_KEYS = [k.strip() for k in _keys_env.split(',') if k.strip()] or ([RAPIDAPI_KEY] if RAPIDAPI_KEY else [])
+
+# Ensure RAPIDAPI_KEY always has a value (fallback to first rotated key)
+if not RAPIDAPI_KEY and RAPIDAPI_KEYS:
+    RAPIDAPI_KEY = RAPIDAPI_KEYS[0]
 
 # Initialize Groq client
 groq_client = Groq(api_key=GROQ_API_KEY)
