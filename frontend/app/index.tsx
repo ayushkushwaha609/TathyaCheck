@@ -46,8 +46,8 @@ export default function HomeScreen() {
       // Prevent duplicate processing
       if (!hasShareIntent || isProcessingShareRef.current || isLoading) return;
 
-      // Get shared text (URL might be in text or webUrl property)
-      const sharedText = shareIntent?.text || shareIntent?.webUrl || '';
+      // Get shared URL - prefer webUrl (direct URL) over text (may contain non-URL content)
+      const sharedText = shareIntent?.webUrl || shareIntent?.text || '';
       if (!sharedText) {
         resetShareIntent();
         return;
@@ -59,13 +59,16 @@ export default function HomeScreen() {
       // Validate it's from Instagram or YouTube
       if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
         isProcessingShareRef.current = true;
-        
+
+        // Clear any stale result/error from a previous check before starting new one
+        useCheckStore.setState({ result: null, error: null });
+
         // Set the URL in store (auto-populate the input field)
         setUrl(cleanUrl);
-        
+
         // Clear share intent to prevent re-processing
         resetShareIntent();
-        
+
         // Pass URL directly to avoid race condition with store state
         const success = await useCheckStore.getState().runCheck(cleanUrl);
         if (success) {

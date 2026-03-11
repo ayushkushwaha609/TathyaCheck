@@ -3,6 +3,11 @@ import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://tathya-api.onrender.com';
 
+// Module-level counter: incremented on every runCheck call.
+// If a newer request starts while an older one is in-flight, the older
+// response is discarded when it eventually arrives.
+let latestRequestId = 0;
+
 export interface CheckResult {
   claim: string;
   claim_regional: string;
@@ -57,13 +62,17 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
     if (isLoading) return false;
 
     const url = urlOverride || storeUrl;
-    
+
     // Validate URL
     const urlPattern = /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i;
     if (!url || !urlPattern.test(url)) {
       set({ error: 'Please paste a valid Instagram or YouTube link' });
       return false;
     }
+
+    // Tag this request; any response with a stale ID is discarded
+    latestRequestId++;
+    const myId = latestRequestId;
 
     set({ isLoading: true, error: null, result: null });
 
@@ -75,11 +84,16 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
         timeout: 120000, // 2 minutes timeout
       });
 
+      // Discard if a newer request has already been started
+      if (myId !== latestRequestId) return false;
+
       set({ result: response.data, isLoading: false });
       return true;
     } catch (error: any) {
+      if (myId !== latestRequestId) return false;
+
       let errorMessage = 'Something went wrong. Please try again.';
-      
+
       if (error.response?.data?.detail) {
         const detail = error.response.data.detail;
         if (typeof detail === 'object') {
@@ -98,10 +112,9 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
     }
   },
 
-  reset: () => set({
-    url: '',
-    result: null,
-    error: null,
-    isLoading: false,
-  }),
+  reset: () => {
+    // Invalidate any in-flight request so its response is ignored
+    latestRequestId++;
+    set({ url: '', result: null, error: null, isLoading: false });
+  },
 }));

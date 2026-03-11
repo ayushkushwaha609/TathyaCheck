@@ -5,7 +5,6 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -20,15 +19,31 @@ export default function ResultScreen() {
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioLoaded, setAudioLoaded] = useState(false);
   const soundRef = useRef<Audio.Sound | null>(null);
+  // Tracks whether audio has auto-played for this mount of the result screen.
+  // Prevents double-play when the result store updates a second time (e.g. due
+  // to a duplicate in-flight API call returning after the first one).
+  const hasAutoPlayedRef = useRef(false);
 
+  // Redirect effect — runs only on mount.
+  // This is a safety guard for direct/unexpected navigation to /result when
+  // there is nothing to show. _layout.tsx owns navigation away from this
+  // screen when a new share intent arrives, so we must NOT react to store
+  // changes here — doing so causes a second router.replace('/') that remounts
+  // index.tsx and invalidates the already-started runCheck request.
   useEffect(() => {
-    // Redirect if no result
-    if (!result) {
+    const { result: currentResult, isLoading: currentLoading } = useCheckStore.getState();
+    if (!currentResult && !currentLoading) {
       router.replace('/');
-      return;
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
-    // Setup audio
+  // Audio setup effect — only auto-plays once per screen mount
+  useEffect(() => {
+    if (!result?.audio_base64) return;
+    // Skip if we already auto-played for this screen session
+    if (hasAutoPlayedRef.current) return;
+
     const setupAudio = async () => {
       try {
         await Audio.setAudioModeAsync({
@@ -38,26 +53,28 @@ export default function ResultScreen() {
           shouldDuckAndroid: true,
         });
 
-        if (result.audio_base64) {
-          const sound = new Audio.Sound();
-          // Sarvam TTS returns WAV format audio
-          await sound.loadAsync({
-            uri: `data:audio/wav;base64,${result.audio_base64}`,
-          });
-          soundRef.current = sound;
-          setAudioLoaded(true);
+        const sound = new Audio.Sound();
+        // Sarvam TTS returns WAV format audio
+        await sound.loadAsync({
+          uri: `data:audio/wav;base64,${result.audio_base64}`,
+        });
+        soundRef.current = sound;
+        setAudioLoaded(true);
 
-          // Auto-play on load
-          await sound.playAsync();
-          setIsPlaying(true);
+        // Mark as played before starting so a concurrent result update
+        // can't trigger a second auto-play
+        hasAutoPlayedRef.current = true;
 
-          // Listen for playback status
-          sound.setOnPlaybackStatusUpdate((status) => {
-            if (status.isLoaded && status.didJustFinish) {
-              setIsPlaying(false);
-            }
-          });
-        }
+        // Auto-play on load
+        await sound.playAsync();
+        setIsPlaying(true);
+
+        // Listen for playback status
+        sound.setOnPlaybackStatusUpdate((status) => {
+          if (status.isLoaded && status.didJustFinish) {
+            setIsPlaying(false);
+          }
+        });
       } catch (error) {
         console.error('Audio setup error:', error);
       }
