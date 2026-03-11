@@ -481,7 +481,7 @@ async def fact_check_transcript(transcript: str, language_code: str) -> dict:
 {web_context}
 \"\"\"\n"""
 
-    system_prompt = """You are an expert fact-checker with broad knowledge across topics including science, history, current affairs, technology, health, finance, and general knowledge. 
+    system_prompt = """You are an expert fact-checker with broad knowledge across topics including science, history, current affairs, technology, health, finance, and general knowledge.
 
 IMPORTANT RULES:
 1. You ONLY fact-check claims that are EXPLICITLY stated in the video transcript. Do NOT infer or assume claims.
@@ -494,18 +494,26 @@ IMPORTANT RULES:
 
 Always return ONLY valid JSON. No explanation outside the JSON object."""
 
-    user_prompt = f"""
-Video transcript (this is EXACTLY what was said in the video):
-\"\"\"
-{transcript}
-\"\"\"
-{web_context_block}
-TASK: Fact-check ONLY the specific claims made in this transcript. Use the web search results (if available) to verify claims against current real-world information. Do not evaluate opinions, predictions, or subjective statements - only verifiable factual claims.
+    # Build a different JSON template for English vs bilingual
+    is_english_only = (lang_key == "english")
 
-IMPORTANT: Provide ALL content in BOTH English AND {language_name}. Keep responses CONCISE to fit within limits.
-
-Return ONLY this JSON with no other text:
-{{
+    if is_english_only:
+        json_template = """{{
+  "claim": "One clear sentence summarizing the main claim",
+  "verdict": "TRUE" or "FALSE" or "MISLEADING" or "PARTIALLY_TRUE",
+  "confidence": integer 0-100 (use specific numbers like 73, 84, 91),
+  "category": "health" or "science" or "history" or "technology" or "finance" or "news" or "general",
+  "key_points": ["Point 1", "Point 2"],
+  "reason": "1-2 sentences explaining verdict",
+  "why_misleading": "If MISLEADING/PARTIALLY_TRUE: 1-2 sentences why. Otherwise empty string.",
+  "fact_details": "2-3 sentences about the actual facts",
+  "what_to_know": "1-2 sentences of practical advice",
+  "sources_note": "Brief source note",
+  "verdict_spoken": "2-3 sentence spoken explanation suitable for text-to-speech"
+}}"""
+        language_instruction = "Provide ALL content in English. Keep responses CONCISE to fit within limits."
+    else:
+        json_template = f"""{{
   "claim": "One clear sentence summarizing the main claim (English)",
   "claim_{lang_key}": "Same claim in {language_name}",
   "verdict": "TRUE" or "FALSE" or "MISLEADING" or "PARTIALLY_TRUE",
@@ -524,7 +532,21 @@ Return ONLY this JSON with no other text:
   "sources_note": "Brief source note (English only)",
   "verdict_english": "2-3 sentence spoken explanation in English",
   "verdict_{lang_key}": "Same 2-3 sentence explanation in {language_name}"
-}}
+}}"""
+        language_instruction = f"Provide ALL content in BOTH English AND {language_name}. Keep responses CONCISE to fit within limits."
+
+    user_prompt = f"""
+Video transcript (this is EXACTLY what was said in the video):
+\"\"\"
+{transcript}
+\"\"\"
+{web_context_block}
+TASK: Fact-check ONLY the specific claims made in this transcript. Use the web search results (if available) to verify claims against current real-world information. Do not evaluate opinions, predictions, or subjective statements - only verifiable factual claims.
+
+IMPORTANT: {language_instruction}
+
+Return ONLY this JSON with no other text:
+{json_template}
 """
 
     def _sync_fact_check():
@@ -577,15 +599,17 @@ Return ONLY this JSON with no other text:
         result = json.loads(response_text)
         
         # Get the verdict texts
-        verdict_key = f"verdict_{lang_key}"
-        verdict_text_english = result.get("verdict_english", result.get("reason", ""))
-        verdict_text_regional = result.get(verdict_key, result.get("reason", ""))
-        
-        # Combine both for display (English first, then regional language)
-        # For English, avoid duplicating the same text twice
-        if lang_key == "english":
+        is_english_only = (lang_key == "english")
+
+        if is_english_only:
+            # English-only: use verdict_spoken (no duplicate keys)
+            verdict_text_english = result.get("verdict_spoken", result.get("reason", ""))
+            verdict_text_regional = verdict_text_english
             combined_verdict_text = verdict_text_english
         else:
+            verdict_key = f"verdict_{lang_key}"
+            verdict_text_english = result.get("verdict_english", result.get("reason", ""))
+            verdict_text_regional = result.get(verdict_key, result.get("reason", ""))
             combined_verdict_text = f"{verdict_text_english}\n\n{verdict_text_regional}"
         
         # Ensure confidence is not a round number (add some variation if it is)
@@ -596,35 +620,58 @@ Return ONLY this JSON with no other text:
             confidence = confidence + random.choice([-3, -2, -1, 1, 2, 3])
             confidence = max(1, min(99, confidence))  # Keep within bounds
         
-        # Get bilingual fields
-        claim_regional_key = f"claim_{lang_key}"
-        reason_regional_key = f"reason_{lang_key}"
-        key_points_regional_key = f"key_points_{lang_key}"
-        fact_details_regional_key = f"fact_details_{lang_key}"
-        what_to_know_regional_key = f"what_to_know_{lang_key}"
-        why_misleading_regional_key = f"why_misleading_{lang_key}"
-        
-        return {
-            "claim": result.get("claim", "Could not identify claim"),
-            "claim_regional": result.get(claim_regional_key, ""),
-            "verdict": result.get("verdict", "MISLEADING"),
-            "confidence": confidence,
-            "reason": result.get("reason", "Analysis inconclusive"),
-            "reason_regional": result.get(reason_regional_key, ""),
-            "verdict_text": combined_verdict_text,
-            "verdict_text_english": verdict_text_english,
-            "verdict_text_regional": verdict_text_regional,
-            "category": result.get("category", "general"),
-            "key_points": result.get("key_points", []),
-            "key_points_regional": result.get(key_points_regional_key, []),
-            "fact_details": result.get("fact_details", ""),
-            "fact_details_regional": result.get(fact_details_regional_key, ""),
-            "what_to_know": result.get("what_to_know", ""),
-            "what_to_know_regional": result.get(what_to_know_regional_key, ""),
-            "sources_note": result.get("sources_note", ""),
-            "why_misleading": result.get("why_misleading", ""),
-            "why_misleading_regional": result.get(why_misleading_regional_key, "")
-        }
+        # For English-only, reuse English fields as regional; otherwise look up regional keys
+        if is_english_only:
+            return {
+                "claim": result.get("claim", "Could not identify claim"),
+                "claim_regional": result.get("claim", ""),
+                "verdict": result.get("verdict", "MISLEADING"),
+                "confidence": confidence,
+                "reason": result.get("reason", "Analysis inconclusive"),
+                "reason_regional": result.get("reason", ""),
+                "verdict_text": combined_verdict_text,
+                "verdict_text_english": verdict_text_english,
+                "verdict_text_regional": verdict_text_regional,
+                "category": result.get("category", "general"),
+                "key_points": result.get("key_points", []),
+                "key_points_regional": result.get("key_points", []),
+                "fact_details": result.get("fact_details", ""),
+                "fact_details_regional": result.get("fact_details", ""),
+                "what_to_know": result.get("what_to_know", ""),
+                "what_to_know_regional": result.get("what_to_know", ""),
+                "sources_note": result.get("sources_note", ""),
+                "why_misleading": result.get("why_misleading", ""),
+                "why_misleading_regional": result.get("why_misleading", "")
+            }
+        else:
+            claim_regional_key = f"claim_{lang_key}"
+            reason_regional_key = f"reason_{lang_key}"
+            key_points_regional_key = f"key_points_{lang_key}"
+            fact_details_regional_key = f"fact_details_{lang_key}"
+            what_to_know_regional_key = f"what_to_know_{lang_key}"
+            why_misleading_regional_key = f"why_misleading_{lang_key}"
+
+            return {
+                "claim": result.get("claim", "Could not identify claim"),
+                "claim_regional": result.get(claim_regional_key, ""),
+                "verdict": result.get("verdict", "MISLEADING"),
+                "confidence": confidence,
+                "reason": result.get("reason", "Analysis inconclusive"),
+                "reason_regional": result.get(reason_regional_key, ""),
+                "verdict_text": combined_verdict_text,
+                "verdict_text_english": verdict_text_english,
+                "verdict_text_regional": verdict_text_regional,
+                "category": result.get("category", "general"),
+                "key_points": result.get("key_points", []),
+                "key_points_regional": result.get(key_points_regional_key, []),
+                "fact_details": result.get("fact_details", ""),
+                "fact_details_regional": result.get(fact_details_regional_key, ""),
+                "what_to_know": result.get("what_to_know", ""),
+                "what_to_know_regional": result.get(what_to_know_regional_key, ""),
+                "sources_note": result.get("sources_note", ""),
+                "why_misleading": result.get("why_misleading", ""),
+                "why_misleading_regional": result.get(why_misleading_regional_key, "")
+            }
     except json.JSONDecodeError as e:
         logger.error(f"JSON parse error: {e}, Response: {response_text[:500]}...")
         
@@ -697,9 +744,14 @@ async def synthesize_speech(text: str, language_code: str) -> Optional[str]:
             
             if response.status_code == 200:
                 data = response.json()
-                return data.get("audios", [None])[0]
+                audio = data.get("audios", [None])[0]
+                if audio:
+                    logger.info(f"Sarvam TTS success for {language_code}, audio length: {len(audio)} chars")
+                else:
+                    logger.warning(f"Sarvam TTS returned empty audio for {language_code}")
+                return audio
             else:
-                logger.error(f"Sarvam TTS error: {response.status_code} - {response.text}")
+                logger.error(f"Sarvam TTS error for {language_code}: {response.status_code} - {response.text[:500]}")
                 return None
     except Exception as e:
         logger.error(f"Sarvam TTS exception: {e}")
@@ -792,9 +844,9 @@ async def check_claim(request: Request, body: CheckRequest):
             
             # Step 4: Generate TTS with the more elaborate regional language text
             step4_start = time.time()
-            logger.info("Generating speech...")
             # Use the regional language verdict for TTS (more elaborate version)
             audio_text = result.get("verdict_text_regional", result["verdict_text"])
+            logger.info(f"Generating speech for {language_code}, text ({len(audio_text)} chars): {audio_text[:100]}...")
             audio_base64 = await synthesize_speech(audio_text, language_code)
             step4_dur = time.time() - step4_start
             logger.info(f"⏱ Step 4 - TTS (Sarvam AI): {step4_dur:.2f}s")
