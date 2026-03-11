@@ -37,6 +37,10 @@ GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 SARVAM_API_KEY = os.environ.get('SARVAM_API_KEY')
 RAPIDAPI_KEY = os.environ.get('RAPIDAPI_KEY')
 
+# Instagram API key rotation — tries each key in order until one works
+_keys_env = os.environ.get('RAPIDAPI_KEYS', '')
+RAPIDAPI_KEYS = [k.strip() for k in _keys_env.split(',') if k.strip()] or ([RAPIDAPI_KEY] if RAPIDAPI_KEY else [])
+
 # Initialize Groq client
 groq_client = Groq(api_key=GROQ_API_KEY)
 
@@ -159,37 +163,41 @@ def extract_instagram_reel_url(url: str) -> Optional[str]:
     return url  # Return original URL if no match
 
 async def extract_audio_instagram(url: str, output_dir: str) -> str:
-    """Extract audio from Instagram Reel using RapidAPI"""
+    """Extract audio from Instagram Reel using RapidAPI with key rotation"""
     logger.info(f"Fetching Instagram Reel via RapidAPI: {url}")
-    
+
     client = await get_http_client()
-    if True:  # shared client — no context manager needed
-        # Use instagram-reels-downloader-api (working API)
+
+    for i, api_key in enumerate(RAPIDAPI_KEYS):
         try:
-            logger.info("Trying instagram-reels-downloader-api...")
+            logger.info(f"Trying instagram-reels-downloader-api with key {i+1}/{len(RAPIDAPI_KEYS)}...")
             response = await client.get(
                 "https://instagram-reels-downloader-api.p.rapidapi.com/download",
                 params={"url": url},
                 headers={
-                    "X-RapidAPI-Key": RAPIDAPI_KEY,
+                    "X-RapidAPI-Key": api_key,
                     "X-RapidAPI-Host": "instagram-reels-downloader-api.p.rapidapi.com"
                 },
                 timeout=60.0
             )
-            
-            logger.info(f"instagram-reels-downloader-api response: {response.status_code}")
-            
+
+            logger.info(f"Key {i+1} response: {response.status_code}")
+
+            if response.status_code in (429, 403):
+                logger.warning(f"Key {i+1}: quota/auth error ({response.status_code}), trying next key...")
+                continue
+
             if response.status_code == 200:
                 data = response.json()
                 logger.info(f"API response success: {data.get('success')}")
-                
+
                 if data.get("success") and data.get("data", {}).get("medias"):
                     medias = data["data"]["medias"]
-                    
+
                     # Try to find audio-only track first (better for transcription)
                     audio_url = None
                     video_url = None
-                    
+
                     for media in medias:
                         if media.get("is_audio") and media.get("type") == "audio":
                             audio_url = media.get("url")
@@ -197,31 +205,27 @@ async def extract_audio_instagram(url: str, output_dir: str) -> str:
                             break
                         elif media.get("type") == "video" and media.get("url"):
                             video_url = media.get("url")
-                    
-                    # Download audio or video
+
                     download_url = audio_url or video_url
                     if download_url:
                         logger.info(f"Downloading media from: {download_url[:100]}...")
                         media_response = await client.get(download_url, follow_redirects=True, timeout=60.0)
-                        
+
                         if media_response.status_code == 200 and len(media_response.content) > 1000:
                             if audio_url:
-                                # Save as audio directly
                                 audio_path = os.path.join(output_dir, "audio.m4a")
                                 with open(audio_path, "wb") as f:
                                     f.write(media_response.content)
                                 logger.info(f"Audio saved: {audio_path}, size: {len(media_response.content)} bytes")
                                 return audio_path
                             else:
-                                # Save video and extract audio
                                 video_path = os.path.join(output_dir, "video.mp4")
                                 audio_path = os.path.join(output_dir, "audio.mp3")
-                                
+
                                 with open(video_path, "wb") as f:
                                     f.write(media_response.content)
                                 logger.info(f"Video saved: {video_path}, size: {len(media_response.content)} bytes")
-                                
-                                # Extract audio using ffmpeg (non-blocking)
+
                                 try:
                                     proc = await asyncio.create_subprocess_exec(
                                         "ffmpeg", "-i", video_path, "-vn", "-acodec", "libmp3lame", "-q:a", "4", audio_path, "-y",
@@ -241,17 +245,14 @@ async def extract_audio_instagram(url: str, output_dir: str) -> str:
                         logger.warning("No media URL found in response")
                 else:
                     error_msg = data.get("message", "Unknown error")
-                    logger.warning(f"API error: {error_msg}")
-                    
-            elif response.status_code == 403:
-                logger.warning("instagram-reels-downloader-api: Not subscribed (403)")
+                    logger.warning(f"Key {i+1} API error: {error_msg}")
             else:
-                logger.warning(f"instagram-reels-downloader-api: HTTP {response.status_code} - {response.text[:200]}")
-                
+                logger.warning(f"Key {i+1}: HTTP {response.status_code} - {response.text[:200]}")
+
         except Exception as e:
-            logger.warning(f"instagram-reels-downloader-api failed: {e}")
-        
-        raise Exception("Could not download Instagram Reel. Please make sure the reel is public and try again.")
+            logger.warning(f"Key {i+1} failed with exception: {e}")
+
+    raise Exception("Could not download Instagram Reel. All API keys exhausted. Please make sure the reel is public and try again.")
 
 def extract_youtube_video_id(url: str) -> Optional[str]:
     """Extract video ID from various YouTube URL formats"""
