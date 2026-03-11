@@ -82,7 +82,10 @@ export default function HomeScreen() {
     };
 
     handleShareIntent();
-  }, [hasShareIntent, shareIntent]);
+    // Only depend on hasShareIntent (boolean). shareIntent is an object whose
+    // reference changes on every render, which was causing 5+ duplicate requests.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasShareIntent]);
 
   const handleCheck = async () => {
     Keyboard.dismiss();
