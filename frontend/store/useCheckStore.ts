@@ -8,6 +8,9 @@ const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://tathya-api.onren
 // response is discarded when it eventually arrives.
 let latestRequestId = 0;
 
+// Synchronous lock to prevent duplicate requests (zustand state updates are async)
+let isRequestInFlight = false;
+
 export interface CheckResult {
   claim: string;
   claim_regional: string;
@@ -56,10 +59,11 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
   setLanguageCode: (code: string) => set({ languageCode: code }),
 
   runCheck: async (urlOverride?: string) => {
-    const { url: storeUrl, languageCode, isLoading } = get();
+    const { url: storeUrl, languageCode } = get();
 
-    // Prevent duplicate requests
-    if (isLoading) return false;
+    // Prevent duplicate requests (synchronous check — zustand setState is async)
+    if (isRequestInFlight) return false;
+    isRequestInFlight = true;
 
     const url = urlOverride || storeUrl;
 
@@ -87,10 +91,13 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
       // Discard if a newer request has already been started
       if (myId !== latestRequestId) return false;
 
+      isRequestInFlight = false;
       set({ result: response.data, isLoading: false });
       return true;
     } catch (error: any) {
       if (myId !== latestRequestId) return false;
+
+      isRequestInFlight = false;
 
       let errorMessage = 'Something went wrong. Please try again.';
 
@@ -115,6 +122,7 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
   reset: () => {
     // Invalidate any in-flight request so its response is ignored
     latestRequestId++;
+    isRequestInFlight = false;
     set({ url: '', result: null, error: null, isLoading: false });
   },
 }));
