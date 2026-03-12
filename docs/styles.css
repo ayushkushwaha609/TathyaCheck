@@ -797,22 +797,11 @@ body {
   padding: 48px 0 36px;
 }
 
-.footer-inner {
+.footer-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 28px;
-}
-
-.footer-brand {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.footer-tagline {
-  font-size: 0.85rem;
-  color: var(--text-muted);
 }
 
 .footer-links {
@@ -841,12 +830,6 @@ body {
 .footer-bottom p {
   font-size: 0.85rem;
   color: var(--text-muted);
-}
-
-/* ---- Powered By Badge ---- */
-.footer-powered {
-  text-align: center;
-  margin-bottom: 24px;
 }
 
 .powered-badge {
@@ -1076,16 +1059,11 @@ body {
     max-width: 100%;
   }
 
-  .footer-inner {
+  .footer-top {
     flex-direction: column;
-    gap: 16px;
-    text-align: center;
-  }
-
-  .footer-brand {
-    flex-direction: column;
+    gap: 24px;
     align-items: center;
-    gap: 4px;
+    text-align: center;
   }
 }
 
