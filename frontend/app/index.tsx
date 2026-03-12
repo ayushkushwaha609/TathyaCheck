@@ -10,6 +10,7 @@ import {
   ScrollView,
   Keyboard,
   Image,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -230,6 +231,16 @@ export default function HomeScreen() {
         </KeyboardAvoidingView>
 
         {isLoading && <LoadingOverlay />}
+
+        {/* Donation Button */}
+        <TouchableOpacity
+          style={[styles.donateButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+          onPress={() => Linking.openURL('https://chai4.me/ayushkushwaha609')}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="heart" size={16} color="#e74c8b" />
+          <Text style={[styles.donateText, { color: colors.textPrimary }]}>Support</Text>
+        </TouchableOpacity>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -398,5 +409,26 @@ const styles = StyleSheet.create({
   },
   platformText: {
     fontSize: 14,
+  },
+  donateButton: {
+    position: 'absolute',
+    bottom: 24,
+    right: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    gap: 6,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+  },
+  donateText: {
+    fontSize: 13,
+    fontWeight: '600',
   },
 });
