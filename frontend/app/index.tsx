@@ -9,15 +9,17 @@ import {
   Platform,
   ScrollView,
   Keyboard,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useCheckStore } from '../store/useCheckStore';
+import { useThemeStore } from '../store/useThemeStore';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
-import { colors } from '../constants/theme';
 
 function extractUrl(text: string): string {
   const match = text.match(/https?:\/\/[^\s]+/);
@@ -26,6 +28,7 @@ function extractUrl(text: string): string {
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { colors, isDark, toggleTheme } = useThemeStore();
   const {
     url,
     setUrl,
@@ -36,54 +39,38 @@ export default function HomeScreen() {
     runCheck,
   } = useCheckStore();
 
-  // Use expo-share-intent context for receiving shared content
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const isProcessingShareRef = useRef(false);
 
-  // Handle incoming share intent - auto-populate and auto-search
   useEffect(() => {
     const handleShareIntent = async () => {
-      // Prevent duplicate processing
       if (!hasShareIntent || isProcessingShareRef.current) return;
 
-      // Get shared URL - prefer webUrl (direct URL) over text (may contain non-URL content)
       const sharedText = shareIntent?.webUrl || shareIntent?.text || '';
       if (!sharedText) {
         resetShareIntent();
         return;
       }
 
-      // Extract URL from shared text
       const cleanUrl = extractUrl(sharedText);
 
-      // Validate it's from Instagram or YouTube
       if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
         isProcessingShareRef.current = true;
-
-        // Clear any stale result/error/loading from a previous check before starting new one
         useCheckStore.setState({ result: null, error: null, isLoading: false });
-
-        // Set the URL in store (auto-populate the input field)
         setUrl(cleanUrl);
-
-        // Clear share intent to prevent re-processing
         resetShareIntent();
 
-        // Pass URL directly to avoid race condition with store state
         const success = await useCheckStore.getState().runCheck(cleanUrl);
         if (success) {
           router.push('/result');
         }
         isProcessingShareRef.current = false;
       } else {
-        // Clear invalid share intent
         resetShareIntent();
       }
     };
 
     handleShareIntent();
-    // Only depend on hasShareIntent (boolean). shareIntent is an object whose
-    // reference changes on every render, which was causing 5+ duplicate requests.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasShareIntent]);
 
@@ -96,115 +83,153 @@ export default function HomeScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        style={styles.keyboardView}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+    <LinearGradient
+      colors={[colors.gradientStart, colors.gradientEnd]}
+      style={styles.gradient}
+    >
+      <SafeAreaView style={styles.container}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+          style={styles.keyboardView}
         >
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.logoContainer}>
-              <Ionicons name="scan" size={36} color={colors.saffron} />
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            keyboardShouldPersistTaps="handled"
+          >
+            {/* Theme Toggle */}
+            <View style={styles.toggleRow}>
+              <TouchableOpacity
+                style={[styles.themeToggle, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+                onPress={toggleTheme}
+              >
+                <Ionicons
+                  name={isDark ? 'sunny' : 'moon'}
+                  size={18}
+                  color={colors.saffron}
+                />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.appName}>TathyaCheck</Text>
-            <Text style={styles.taglineHindi}>तथ्य की जांच</Text>
-            <Text style={styles.tagline}>Share a reel. Hear the truth.</Text>
-          </View>
 
-          {/* Input Section */}
-          <View style={styles.inputSection}>
-            <Text style={styles.inputLabel}>Paste Video Link</Text>
-            <View style={styles.inputContainer}>
-              <Ionicons
-                name="link"
-                size={20}
-                color={colors.ashGray}
-                style={styles.inputIcon}
+            {/* Header with Logo */}
+            <View style={styles.header}>
+              <Image
+                source={require('../assets/images/logo.png')}
+                style={[styles.logo, isDark && { tintColor: '#ffffff' }]}
+                resizeMode="contain"
               />
-              <TextInput
-                style={styles.textInput}
-                placeholder="Instagram or YouTube link"
-                placeholderTextColor={colors.lightGray}
-                value={url}
-                onChangeText={setUrl}
-                autoCapitalize="none"
-                autoCorrect={false}
-                keyboardType="url"
-              />
-              {url.length > 0 && (
-                <TouchableOpacity onPress={() => setUrl('')}>
-                  <Ionicons name="close-circle" size={20} color={colors.lightGray} />
-                </TouchableOpacity>
+              <Text style={[styles.taglineHindi, { color: colors.saffron }]}>
+                तथ्य की जांच
+              </Text>
+              <Text style={[styles.tagline, { color: colors.textTertiary }]}>
+                Share a reel. Hear the truth.
+              </Text>
+            </View>
+
+            {/* Input Section */}
+            <View style={styles.inputSection}>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+                Paste Video Link
+              </Text>
+              <View style={[styles.inputContainer, { backgroundColor: colors.inputBg, borderColor: colors.cardBorder }]}>
+                <Ionicons
+                  name="link"
+                  size={20}
+                  color={colors.textTertiary}
+                  style={styles.inputIcon}
+                />
+                <TextInput
+                  style={[styles.textInput, { color: colors.textPrimary }]}
+                  placeholder="Instagram or YouTube link"
+                  placeholderTextColor={colors.textTertiary}
+                  value={url}
+                  onChangeText={setUrl}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  keyboardType="url"
+                />
+                {url.length > 0 && (
+                  <TouchableOpacity onPress={() => setUrl('')}>
+                    <Ionicons name="close-circle" size={20} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                )}
+              </View>
+
+              {error && (
+                <View style={styles.errorContainer}>
+                  <Ionicons name="alert-circle" size={16} color={colors.false} />
+                  <Text style={[styles.errorText, { color: colors.false }]}>{error}</Text>
+                </View>
               )}
-            </View>
 
-            {/* Error Message */}
-            {error && (
-              <View style={styles.errorContainer}>
-                <Ionicons name="alert-circle" size={16} color={colors.false} />
-                <Text style={styles.errorText}>{error}</Text>
-              </View>
-            )}
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
+                Select Language
+              </Text>
+              <LanguagePicker
+                selectedValue={languageCode}
+                onValueChange={setLanguageCode}
+              />
 
-            {/* Language Picker */}
-            <Text style={styles.inputLabel}>Select Language</Text>
-            <LanguagePicker
-              selectedValue={languageCode}
-              onValueChange={setLanguageCode}
-            />
+              {/* Check Button with gradient */}
+              <TouchableOpacity
+                onPress={handleCheck}
+                disabled={!url || isLoading}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={(!url || isLoading)
+                    ? [colors.sandstone, colors.sandstone]
+                    : [colors.deepIndigo as string, colors.deepTeal as string]}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                  style={styles.checkButton}
+                >
+                  <Text style={styles.checkButtonText}>Check</Text>
+                  <Text style={[styles.checkButtonHindi, { color: colors.warmOrange }]}>
+                    जांचें
+                  </Text>
+                  <Ionicons name="arrow-forward" size={20} color="#fff" />
+                </LinearGradient>
+              </TouchableOpacity>
 
-            {/* Check Button */}
-            <TouchableOpacity
-              style={[
-                styles.checkButton,
-                (!url || isLoading) && styles.checkButtonDisabled,
-              ]}
-              onPress={handleCheck}
-              disabled={!url || isLoading}
-            >
-              <Text style={styles.checkButtonText}>Check</Text>
-              <Text style={styles.checkButtonHindi}>जांचें</Text>
-              <Ionicons name="arrow-forward" size={20} color={colors.white} />
-            </TouchableOpacity>
-
-            {/* Info Text */}
-            <View style={styles.infoContainer}>
-              <Ionicons name="information-circle" size={16} color={colors.lightGray} />
-              <Text style={styles.infoText}>Works with public reels only</Text>
-            </View>
-          </View>
-
-          {/* Supported Platforms */}
-          <View style={styles.platformsContainer}>
-            <Text style={styles.platformsLabel}>Supported Platforms</Text>
-            <View style={styles.platformsRow}>
-              <View style={styles.platformBadge}>
-                <Ionicons name="logo-instagram" size={20} color="#E1306C" />
-                <Text style={styles.platformText}>Instagram</Text>
-              </View>
-              <View style={styles.platformBadge}>
-                <Ionicons name="logo-youtube" size={20} color="#FF0000" />
-                <Text style={styles.platformText}>YouTube</Text>
+              <View style={styles.infoContainer}>
+                <Ionicons name="information-circle" size={16} color={colors.textTertiary} />
+                <Text style={[styles.infoText, { color: colors.textTertiary }]}>
+                  Works with public reels only
+                </Text>
               </View>
             </View>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
 
-      {/* Loading Overlay */}
-      {isLoading && <LoadingOverlay />}
-    </SafeAreaView>
+            {/* Supported Platforms */}
+            <View style={styles.platformsContainer}>
+              <Text style={[styles.platformsLabel, { color: colors.textTertiary }]}>
+                Supported Platforms
+              </Text>
+              <View style={styles.platformsRow}>
+                <View style={[styles.platformBadge, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                  <Ionicons name="logo-instagram" size={20} color="#E1306C" />
+                  <Text style={[styles.platformText, { color: colors.textPrimary }]}>Instagram</Text>
+                </View>
+                <View style={[styles.platformBadge, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
+                  <Ionicons name="logo-youtube" size={20} color="#FF0000" />
+                  <Text style={[styles.platformText, { color: colors.textPrimary }]}>YouTube</Text>
+                </View>
+              </View>
+            </View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+
+        {isLoading && <LoadingOverlay />}
+      </SafeAreaView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradient: {
+    flex: 1,
+  },
   container: {
     flex: 1,
-    backgroundColor: colors.cream,
   },
   keyboardView: {
     flex: 1,
@@ -212,43 +237,42 @@ const styles = StyleSheet.create({
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 20,
+    paddingTop: 8,
     paddingBottom: 40,
+  },
+  toggleRow: {
+    alignItems: 'flex-end',
+    marginBottom: 4,
+  },
+  themeToggle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
   },
   header: {
     alignItems: 'center',
-    marginBottom: 40,
+    marginBottom: 36,
   },
-  logoContainer: {
-    width: 80,
+  logo: {
+    width: 200,
     height: 80,
-    borderRadius: 20,
-    backgroundColor: colors.deepIndigo,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  appName: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: colors.deepIndigo,
+    marginBottom: 8,
   },
   taglineHindi: {
-    fontSize: 18,
-    color: colors.saffron,
-    marginTop: 4,
+    fontSize: 16,
     fontWeight: '500',
   },
   tagline: {
     fontSize: 14,
-    color: colors.ashGray,
-    marginTop: 8,
+    marginTop: 4,
   },
   inputSection: {
     marginBottom: 32,
   },
   inputLabel: {
-    color: colors.charcoal,
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
@@ -257,18 +281,15 @@ const styles = StyleSheet.create({
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
     borderRadius: 12,
     paddingHorizontal: 16,
     borderWidth: 1,
-    borderColor: colors.sandstone,
   },
   inputIcon: {
     marginRight: 12,
   },
   textInput: {
     flex: 1,
-    color: colors.charcoal,
     fontSize: 16,
     paddingVertical: 14,
   },
@@ -279,29 +300,23 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   errorText: {
-    color: colors.false,
     fontSize: 14,
   },
   checkButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.deepIndigo,
     borderRadius: 12,
     paddingVertical: 16,
     marginTop: 24,
     gap: 8,
   },
-  checkButtonDisabled: {
-    backgroundColor: colors.sandstone,
-  },
   checkButtonText: {
-    color: colors.white,
+    color: '#ffffff',
     fontSize: 18,
     fontWeight: '600',
   },
   checkButtonHindi: {
-    color: colors.warmOrange,
     fontSize: 16,
     fontWeight: '500',
   },
@@ -313,14 +328,12 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   infoText: {
-    color: colors.lightGray,
     fontSize: 14,
   },
   platformsContainer: {
     alignItems: 'center',
   },
   platformsLabel: {
-    color: colors.lightGray,
     fontSize: 12,
     marginBottom: 12,
     textTransform: 'uppercase',
@@ -333,16 +346,13 @@ const styles = StyleSheet.create({
   platformBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.white,
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     gap: 8,
     borderWidth: 1,
-    borderColor: colors.sandstone,
   },
   platformText: {
-    color: colors.charcoal,
     fontSize: 14,
   },
 });
