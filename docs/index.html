@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TathyaQuest — AI Fact-Checker for Indian Languages</title>
+  <meta name="description" content="TathyaQuest fact-checks Instagram Reels & YouTube Shorts using AI and delivers verdicts in 6 Indian languages via text-to-speech.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Noto+Sans+Devanagari:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="#" class="nav-logo">
+        <span class="logo-text">तथ्य</span>
+        <span class="logo-sub">TathyaQuest</span>
+      </a>
+      <div class="nav-links">
+        <a href="#how-it-works">How It Works</a>
+        <a href="#languages">Languages</a>
+        <a href="#moat">Why TathyaQuest</a>
+        <a href="#tech">Tech Stack</a>
+        <a href="#download" class="nav-cta">Download APK</a>
+      </div>
+      <button class="nav-toggle" id="navToggle" aria-label="Toggle menu">
+        <span></span><span></span><span></span>
+      </button>
+    </div>
+    <!-- Mobile menu -->
+    <div class="nav-mobile" id="navMobile">
+      <a href="#how-it-works">How It Works</a>
+      <a href="#languages">Languages</a>
+      <a href="#moat">Why TathyaQuest</a>
+      <a href="#tech">Tech Stack</a>
+      <a href="#download" class="nav-cta">Download APK</a>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-glow"></div>
+    <div class="container">
+      <div class="hero-badge fade-in">
+        <span class="badge-dot"></span>
+        AI-Powered Fact Checking
+      </div>
+      <h1 class="hero-title fade-in">
+        Fact-check videos.<br>
+        <span class="hero-gradient">Hear the truth in your language.</span>
+      </h1>
+      <p class="hero-sub fade-in">
+        Share any Instagram Reel or YouTube Short directly to TathyaQuest — it transcribes the audio,
+        fact-checks the claims with AI, and speaks the verdict back to you in your language.
+      </p>
+      <div class="hero-actions fade-in">
+        <a href="https://expo.dev/accounts/ayushkush/projects/tathya/builds/82eaa326-c01e-4821-bfb9-3b6f441258a8" class="btn btn-primary" target="_blank" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          Download APK
+        </a>
+        <a href="https://github.com/ayushkushwaha609/SachCheck" class="btn btn-secondary" target="_blank" rel="noopener">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+          View Source
+        </a>
+      </div>
+      <div class="hero-langs fade-in">
+        <span class="hero-lang">हिंदी</span>
+        <span class="hero-lang">தமிழ்</span>
+        <span class="hero-lang">తెలుగు</span>
+        <span class="hero-lang">ಕನ್ನಡ</span>
+        <span class="hero-lang">മലயாളം</span>
+        <span class="hero-lang">मराठी</span>
+      </div>
+      <div class="disclaimer fade-in">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        <span>TathyaQuest currently fact-checks <strong>audio content only</strong> (spoken claims). Visual content analysis — such as on-screen text, images, and video frames — is not yet supported due to the high cost of multimodal video understanding APIs. This is planned for a future release.</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works -->
+  <section class="section" id="how-it-works">
+    <div class="container">
+      <div class="section-header fade-in">
+        <span class="section-label">The Pipeline</span>
+        <h2 class="section-title">Five steps from video to verdict</h2>
+        <p class="section-sub">Paste a link. Get the facts — spoken in your language.</p>
+      </div>
+      <div class="pipeline">
+        <div class="pipeline-step fade-in">
+          <div class="step-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101"/><path d="M10.172 13.828a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+          </div>
+          <div class="step-num">01</div>
+          <h3>Share Video</h3>
+          <p>Share any Instagram Reel or YouTube Short directly to TathyaQuest from the app — or paste the URL manually</p>
+        </div>
+        <div class="pipeline-arrow fade-in">→</div>
+        <div class="pipeline-step fade-in">
+          <div class="step-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+          </div>
+          <div class="step-num">02</div>
+          <h3>Extract Audio</h3>
+          <p>Audio is pulled from the video via RapidAPI — no downloads needed on your device</p>
+        </div>
+        <div class="pipeline-arrow fade-in">→</div>
+        <div class="pipeline-step fade-in">
+          <div class="step-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+          </div>
+          <div class="step-num">03</div>
+          <h3>Transcribe</h3>
+          <p>Groq Whisper converts speech to text — works with Hindi, English, and mixed-language audio</p>
+        </div>
+        <div class="pipeline-arrow fade-in">→</div>
+        <div class="pipeline-step fade-in">
+          <div class="step-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+          </div>
+          <div class="step-num">04</div>
+          <h3>Fact-Check</h3>
+          <p>Llama 3.3 70B analyzes claims — returns verdict, confidence score, and detailed reasoning</p>
+        </div>
+        <div class="pipeline-arrow fade-in">→</div>
+        <div class="pipeline-step fade-in">
+          <div class="step-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 010 14.14"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+          </div>
+          <div class="step-num">05</div>
+          <h3>Speak Verdict</h3>
+          <p>Sarvam AI generates a spoken verdict in your chosen Indian language via TTS</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Regional Language Moat -->
+  <section class="section section-dark" id="moat">
+    <div class="container">
+      <div class="moat-grid">
+        <div class="moat-content fade-in">
+          <span class="section-label">The Differentiator</span>
+          <h2 class="section-title">Built for Bharat,<br>not just English speakers</h2>
+          <p class="moat-text">
+            Most fact-checkers work only in English. TathyaQuest is different — it understands audio in 
+            <strong>any language</strong>, fact-checks the claims, and delivers the verdict 
+            <strong>spoken aloud in your regional language</strong>.
+          </p>
+          <div class="moat-features">
+            <div class="moat-feature">
+              <div class="moat-feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3z"/><path d="M19 10v2a7 7 0 01-14 0v-2"/></svg>
+              </div>
+              <div>
+                <h4>Multilingual Transcription</h4>
+                <p>Handles Hindi, English, code-mixed, and regional language audio seamlessly</p>
+              </div>
+            </div>
+            <div class="moat-feature">
+              <div class="moat-feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 010 7.07"/></svg>
+              </div>
+              <div>
+                <h4>Regional TTS Verdicts</h4>
+                <p>Hear fact-check results in natural-sounding Hindi, Tamil, Telugu, Kannada, Malayalam, or Marathi</p>
+              </div>
+            </div>
+            <div class="moat-feature">
+              <div class="moat-feature-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+              </div>
+              <div>
+                <h4>Accessibility First</h4>
+                <p>Audio verdicts make fact-checking accessible to users who prefer listening over reading</p>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="moat-visual fade-in">
+          <div class="moat-card">
+            <div class="moat-card-header">
+              <span class="moat-card-badge verdict-false">FALSE</span>
+              <span class="moat-card-confidence">Confidence: 92%</span>
+            </div>
+            <div class="moat-card-claim">"Drinking warm water with lemon cures cancer naturally"</div>
+            <div class="moat-card-divider"></div>
+            <div class="moat-card-verdict">
+              <p class="moat-card-label">Verdict in हिंदी</p>
+              <p class="moat-card-regional">"यह दावा पूरी तरह से गलत है। नींबू पानी पीने से कैंसर का इलाज नहीं होता।"</p>
+            </div>
+            <div class="moat-card-audio">
+              <div class="audio-wave">
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+                <span></span><span></span><span></span><span></span><span></span>
+              </div>
+              <span class="audio-label">🔊 Audio verdict playing...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Languages -->
+  <section class="section" id="languages">
+    <div class="container">
+      <div class="section-header fade-in">
+        <span class="section-label">Languages</span>
+        <h2 class="section-title">6 Indian languages. One tap.</h2>
+        <p class="section-sub">Select your preferred language and hear the fact-check verdict spoken aloud.</p>
+      </div>
+      <div class="lang-grid">
+        <div class="lang-card fade-in">
+          <span class="lang-native">हिंदी</span>
+          <span class="lang-name">Hindi</span>
+          <span class="lang-code">hi-IN</span>
+        </div>
+        <div class="lang-card fade-in">
+          <span class="lang-native">தமிழ்</span>
+          <span class="lang-name">Tamil</span>
+          <span class="lang-code">ta-IN</span>
+        </div>
+        <div class="lang-card fade-in">
+          <span class="lang-native">తెలుగు</span>
+          <span class="lang-name">Telugu</span>
+          <span class="lang-code">te-IN</span>
+        </div>
+        <div class="lang-card fade-in">
+          <span class="lang-native">ಕನ್ನಡ</span>
+          <span class="lang-name">Kannada</span>
+          <span class="lang-code">kn-IN</span>
+        </div>
+        <div class="lang-card fade-in">
+          <span class="lang-native">മലയാളം</span>
+          <span class="lang-name">Malayalam</span>
+          <span class="lang-code">ml-IN</span>
+        </div>
+        <div class="lang-card fade-in">
+          <span class="lang-native">मराठी</span>
+          <span class="lang-name">Marathi</span>
+          <span class="lang-code">mr-IN</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Tech Stack -->
+  <section class="section section-dark" id="tech">
+    <div class="container">
+      <div class="section-header fade-in">
+        <span class="section-label">Under The Hood</span>
+        <h2 class="section-title">Built with cutting-edge AI</h2>
+        <p class="section-sub">A modern stack designed for speed, accuracy, and multilingual intelligence.</p>
+      </div>
+      <div class="tech-grid">
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">⚡</div>
+          <h3>Groq Whisper</h3>
+          <p>Lightning-fast speech-to-text transcription with multilingual support</p>
+          <span class="tech-tag">Transcription</span>
+        </div>
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">🧠</div>
+          <h3>Llama 3.3 70B</h3>
+          <p>Large language model for deep claim analysis, reasoning, and verdict generation</p>
+          <span class="tech-tag">Fact-Checking</span>
+        </div>
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">🗣️</div>
+          <h3>Sarvam AI</h3>
+          <p>Natural-sounding text-to-speech in 6 Indian languages using bulbul:v2</p>
+          <span class="tech-tag">Text-to-Speech</span>
+        </div>
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">📱</div>
+          <h3>Expo + React Native</h3>
+          <p>Cross-platform mobile app with native share intent and audio playback</p>
+          <span class="tech-tag">Frontend</span>
+        </div>
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">🚀</div>
+          <h3>FastAPI</h3>
+          <p>High-performance async Python backend with rate limiting and caching</p>
+          <span class="tech-tag">Backend</span>
+        </div>
+        <div class="tech-card fade-in">
+          <div class="tech-card-icon">🗄️</div>
+          <h3>MongoDB</h3>
+          <p>Persistent result caching — repeat lookups are ~50x faster</p>
+          <span class="tech-tag">Database</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="section cta-section" id="download">
+    <div class="container">
+      <div class="cta-content fade-in">
+        <h2 class="cta-title">
+          Stop sharing misinformation.<br>
+          <span class="hero-gradient">Start checking facts.</span>
+        </h2>
+        <p class="cta-sub">Download TathyaQuest and verify claims in seconds — in the language you think in.</p>
+        <div class="hero-actions">
+          <a href="https://expo.dev/accounts/ayushkush/projects/tathya/builds/82eaa326-c01e-4821-bfb9-3b6f441258a8" class="btn btn-primary" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            Download for Android
+          </a>
+          <a href="https://github.com/ayushkushwaha609/SachCheck" class="btn btn-secondary" target="_blank" rel="noopener">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"/></svg>
+            View on GitHub
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <span class="logo-text">तथ्य</span>
+          <span class="footer-tagline">TathyaQuest — AI-powered fact-checking for Indian languages</span>
+        </div>
+        <div class="footer-links">
+          <a href="https://github.com/ayushkushwaha609/SachCheck" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://expo.dev/accounts/ayushkush/projects/tathya/builds/82eaa326-c01e-4821-bfb9-3b6f441258a8" target="_blank" rel="noopener">Download</a>
+          <a href="https://buymeachai.ezee.li/ayushkushwaha" target="_blank" rel="noopener">Support</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>Built with ❤️ for Bharat</p>
+      </div>
+    </div>
+  </footer>
+
+  <!-- Floating Donate Button -->
+  <a href="https://buymeachai.ezee.li/ayushkushwaha" target="_blank" rel="noopener noreferrer" class="donate-float">
+    <img src="buymeachai-button.png" alt="Buy Me A Chai" width="160">
+  </a>
+
+  <script src="script.js"></script>
+</body>
+</html>
