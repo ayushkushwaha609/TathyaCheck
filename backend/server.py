@@ -809,7 +809,7 @@ Return ONLY this JSON with no other text:
 
         def _sync_gemini_call():
             return gemini_client.models.generate_content(
-                model="gemini-2.0-flash",
+                model="gemini-2.5-flash",
                 contents=[
                     genai_types.Content(parts=[
                         genai_types.Part.from_uri(file_uri=url, mime_type="video/*"),
