@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import axios from 'axios';
+import { useAuthStore } from './useAuthStore';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://tathya-api.onrender.com';
 const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
@@ -71,7 +72,19 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
     // Validate URL
     const urlPattern = /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i;
     if (!url || !urlPattern.test(url)) {
+      isRequestInFlight = false;
       set({ error: 'Please paste a valid Instagram or YouTube link' });
+      return false;
+    }
+
+    // Pre-check daily limit
+    const authState = useAuthStore.getState();
+    if (authState.checksRemaining <= 0) {
+      isRequestInFlight = false;
+      const msg = authState.isAuthenticated
+        ? 'Daily limit reached. Come back tomorrow!'
+        : 'Daily limit reached. Sign in with Google for more checks!';
+      set({ error: msg });
       return false;
     }
 
@@ -82,18 +95,23 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
     set({ isLoading: true, error: null, result: null });
 
     try {
+      const headers: Record<string, string> = {};
+      if (API_KEY) headers['X-API-Key'] = API_KEY;
+      if (authState.deviceId) headers['X-Device-Id'] = authState.deviceId;
+
       const response = await axios.post(`${API_URL}/api/check`, {
         url,
         language_code: languageCode,
       }, {
         timeout: 120000, // 2 minutes timeout
-        headers: API_KEY ? { 'X-API-Key': API_KEY } : {},
+        headers,
       });
 
       // Discard if a newer request has already been started
       if (myId !== latestRequestId) return false;
 
       isRequestInFlight = false;
+      useAuthStore.getState().incrementUsage();
       set({ result: response.data, isLoading: false });
       return true;
     } catch (error: any) {

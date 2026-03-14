@@ -4,6 +4,7 @@ import { StatusBar } from 'expo-status-bar';
 import { View, StyleSheet } from 'react-native';
 import { ShareIntentProvider, useShareIntentContext } from 'expo-share-intent';
 import { useThemeStore } from '../store/useThemeStore';
+import { useAuthStore } from '../store/useAuthStore';
 
 function ShareIntentHandler({ children }: { children: React.ReactNode }) {
   const router = useRouter();
@@ -29,6 +30,11 @@ function ShareIntentHandler({ children }: { children: React.ReactNode }) {
 
 export default function RootLayout() {
   const { colors } = useThemeStore();
+  const { initDevice, fetchUsage } = useAuthStore();
+
+  React.useEffect(() => {
+    initDevice().then(() => fetchUsage());
+  }, []);
 
   return (
     <ShareIntentProvider>

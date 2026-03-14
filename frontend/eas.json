@@ -12,7 +12,9 @@
       },
       "env": {
         "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com",
-        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8"
+        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "702318540164-1ar7v9ldkgeasqpvqlrmfi6rv3j0vdk5.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "702318540164-38r0mbth36p3t16siiuhm5in1t0tr9q6.apps.googleusercontent.com"
       }
     },
     "production": {
@@ -20,7 +22,9 @@
       "android": {},
       "env": {
         "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com",
-        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8"
+        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_WEB": "702318540164-1ar7v9ldkgeasqpvqlrmfi6rv3j0vdk5.apps.googleusercontent.com",
+        "EXPO_PUBLIC_GOOGLE_CLIENT_ID_ANDROID": "702318540164-38r0mbth36p3t16siiuhm5in1t0tr9q6.apps.googleusercontent.com"
       }
     }
   }

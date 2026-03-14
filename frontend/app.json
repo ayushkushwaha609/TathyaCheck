@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Tathya",
+    "name": "TathyaQuest",
     "slug": "tathya",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -42,7 +42,9 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      "expo-auth-session",
+      "expo-crypto"
     ],
     "experiments": {
       "typedRoutes": true
@@ -52,6 +54,10 @@
       "eas": {
         "projectId": "7fd45bc7-f8c7-4926-84f9-7215ec3fd31a"
       }
+    },
+    "runtimeVersion": "1.0.0",
+    "updates": {
+      "url": "https://u.expo.dev/7fd45bc7-f8c7-4926-84f9-7215ec3fd31a"
     },
     "owner": "kushayush"
   }

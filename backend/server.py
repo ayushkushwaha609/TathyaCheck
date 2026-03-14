@@ -1,4 +1,4 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Security
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Security, Header
 from fastapi.security import APIKeyHeader
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
@@ -16,12 +16,14 @@ import httpx
 from groq import Groq
 from duckduckgo_search import DDGS
 from urllib.parse import quote as url_quote, urlparse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 import time
 import asyncio
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
-from slowapi.errors import RateLimitExceeded 
+from slowapi.errors import RateLimitExceeded
+from google.oauth2 import id_token as google_id_token
+from google.auth.transport import requests as google_requests
 
 ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
@@ -62,6 +64,17 @@ async def verify_api_key(api_key: str = Security(api_key_header)):
     if api_key != APP_API_KEY:
         raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
+# Google OAuth config
+GOOGLE_CLIENT_ID_WEB = os.environ.get('GOOGLE_CLIENT_ID_WEB', '')
+GOOGLE_CLIENT_ID_ANDROID = os.environ.get('GOOGLE_CLIENT_ID_ANDROID', '')
+
+# Daily usage limits
+DAILY_LIMIT_ANON = int(os.environ.get('DAILY_LIMIT_ANON', '3'))
+DAILY_LIMIT_AUTH = int(os.environ.get('DAILY_LIMIT_AUTH', '5'))
+
+# IST timezone
+IST = timezone(timedelta(hours=5, minutes=30))
+
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
 
@@ -86,8 +99,10 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# MongoDB collection for caching
+# MongoDB collections
 checks_collection = db["checks"]
+devices_collection = db["devices"]
+usage_collection = db["usage_log"]
 
 # Configure logging
 logging.basicConfig(
@@ -752,30 +767,152 @@ async def synthesize_speech(text: str, language_code: str) -> Optional[str]:
         logger.error(f"Sarvam TTS exception: {e}")
         return None
 
+# --- Helper: get today's date in IST ---
+def today_ist() -> str:
+    return datetime.now(IST).strftime('%Y-%m-%d')
+
+# --- Helper: get usage info for a device ---
+async def get_device_usage(device_id: str) -> dict:
+    """Return daily_limit, checks_used, checks_remaining, is_authenticated for a device."""
+    device = await devices_collection.find_one({"device_id": device_id})
+    is_auth = bool(device and device.get("google_id"))
+    daily_limit = DAILY_LIMIT_AUTH if is_auth else DAILY_LIMIT_ANON
+    checks_used = await usage_collection.count_documents({"device_id": device_id, "date_ist": today_ist()})
+    return {
+        "daily_limit": daily_limit,
+        "checks_used": checks_used,
+        "checks_remaining": max(0, daily_limit - checks_used),
+        "is_authenticated": is_auth,
+        "email": (device.get("google_email") if device else None),
+        "name": (device.get("google_name") if device else None),
+    }
+
+# --- Dependency: verify daily limit ---
+async def verify_daily_limit(request: Request):
+    device_id = request.headers.get("X-Device-Id")
+    if not device_id:
+        raise HTTPException(status_code=400, detail={"error": "missing_device_id", "message": "Device ID is required."})
+
+    # Ensure device exists
+    await devices_collection.update_one(
+        {"device_id": device_id},
+        {"$setOnInsert": {"device_id": device_id, "google_id": None, "google_email": None, "google_name": None, "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+
+    usage = await get_device_usage(device_id)
+    if usage["checks_remaining"] <= 0:
+        msg = "Daily limit reached. Sign in with Google for more checks!" if not usage["is_authenticated"] else "Daily limit reached. Come back tomorrow!"
+        raise HTTPException(status_code=429, detail={
+            "error": "daily_limit_reached",
+            "message": msg,
+            "daily_limit": usage["daily_limit"],
+            "checks_used": usage["checks_used"],
+        })
+
+# --- Auth endpoints ---
+
+class GoogleAuthRequest(BaseModel):
+    id_token: str
+    device_id: str
+
+@api_router.post("/auth/google")
+async def google_auth(body: GoogleAuthRequest):
+    """Verify Google ID token and link device to Google account."""
+    try:
+        idinfo = google_id_token.verify_oauth2_token(
+            body.id_token,
+            google_requests.Request(),
+            audience=GOOGLE_CLIENT_ID_WEB,
+        )
+        # Also accept Android client ID as audience
+        if idinfo.get("aud") not in (GOOGLE_CLIENT_ID_WEB, GOOGLE_CLIENT_ID_ANDROID):
+            raise ValueError("Invalid audience")
+    except Exception as e:
+        logger.error(f"Google token verification failed: {e}")
+        raise HTTPException(status_code=401, detail="Invalid Google token")
+
+    google_id = idinfo["sub"]
+    email = idinfo.get("email", "")
+    name = idinfo.get("name", "")
+
+    await devices_collection.update_one(
+        {"device_id": body.device_id},
+        {"$set": {
+            "google_id": google_id,
+            "google_email": email,
+            "google_name": name,
+            "linked_at": datetime.now(timezone.utc).isoformat(),
+        }, "$setOnInsert": {
+            "device_id": body.device_id,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }},
+        upsert=True,
+    )
+
+    usage = await get_device_usage(body.device_id)
+    return {
+        "authenticated": True,
+        "email": email,
+        "name": name,
+        **usage,
+    }
+
+@api_router.post("/auth/logout")
+async def logout(body: dict):
+    """Unlink Google account from device."""
+    device_id = body.get("device_id")
+    if not device_id:
+        raise HTTPException(status_code=400, detail="device_id required")
+
+    await devices_collection.update_one(
+        {"device_id": device_id},
+        {"$set": {"google_id": None, "google_email": None, "google_name": None}},
+    )
+
+    usage = await get_device_usage(device_id)
+    return {"authenticated": False, **usage}
+
+@api_router.get("/usage")
+async def get_usage(x_device_id: Optional[str] = Header(None)):
+    """Get current usage for a device."""
+    if not x_device_id:
+        raise HTTPException(status_code=400, detail="X-Device-Id header required")
+
+    # Ensure device exists
+    await devices_collection.update_one(
+        {"device_id": x_device_id},
+        {"$setOnInsert": {"device_id": x_device_id, "google_id": None, "google_email": None, "google_name": None, "created_at": datetime.now(timezone.utc).isoformat()}},
+        upsert=True,
+    )
+
+    return await get_device_usage(x_device_id)
+
 # API Endpoints
 @api_router.get("/health")
 async def health_check():
     return {"status": "ok"}
 
-@api_router.post("/check", response_model=CheckResponse, dependencies=[Depends(verify_api_key)])
+@api_router.post("/check", response_model=CheckResponse, dependencies=[Depends(verify_api_key), Depends(verify_daily_limit)])
 @limiter.limit("10/minute")
 async def check_claim(request: Request, body: CheckRequest):
     """Main endpoint - fact-check a video URL"""
     url = body.url.strip()
     language_code = body.language_code
-    
+    device_id = request.headers.get("X-Device-Id")
+
     # Validate URL
     if not validate_url(url):
         raise HTTPException(
             status_code=422,
             detail={"error": "invalid_url", "message": "Please provide a valid Instagram or YouTube link."}
         )
-    
+
     # Validate language code
     if language_code not in LANGUAGE_MAP:
         language_code = "hi-IN"  # Default to Hindi
-    
-    # Check MongoDB cache
+
+    # Check MongoDB cache — cached hits don't count against daily limit
     cache_key = get_cache_key(url, language_code)
     cached = await checks_collection.find_one({"cache_key": cache_key}, {"_id": 0})
     if cached:
@@ -884,7 +1021,17 @@ async def check_claim(request: Request, body: CheckRequest):
                 {"$set": cache_doc},
                 upsert=True
             )
-            
+
+            # Log usage for daily limit tracking
+            if device_id:
+                await usage_collection.insert_one({
+                    "device_id": device_id,
+                    "date_ist": today_ist(),
+                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                    "url_checked": url,
+                    "language_code": language_code,
+                })
+
             return response
             
         except HTTPException:
@@ -908,12 +1055,15 @@ app.add_middleware(
     allow_credentials=True if _cors_origins != '*' else False,
     allow_origins=_allow_origins,
     allow_methods=["GET", "POST"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Device-Id"],
 )
 
 @app.on_event("startup")
 async def startup_db():
     await checks_collection.create_index("cache_key", unique=True)
+    await devices_collection.create_index("device_id", unique=True)
+    await devices_collection.create_index("google_id", sparse=True)
+    await usage_collection.create_index([("device_id", 1), ("date_ist", 1)])
 
 @app.on_event("shutdown")
 async def shutdown_db_client():

@@ -19,8 +19,11 @@ import { Ionicons } from '@expo/vector-icons';
 import { useShareIntentContext } from 'expo-share-intent';
 import { useCheckStore } from '../store/useCheckStore';
 import { useThemeStore } from '../store/useThemeStore';
+import { useAuthStore } from '../store/useAuthStore';
 import { LanguagePicker } from '../components/LanguagePicker';
 import { LoadingOverlay } from '../components/LoadingOverlay';
+import { GoogleSignInButton } from '../components/GoogleSignInButton';
+import { UsageBadge } from '../components/UsageBadge';
 
 function extractUrl(text: string): string {
   const match = text.match(/https?:\/\/[^\s]+/);
@@ -39,9 +42,15 @@ export default function HomeScreen() {
     error,
     runCheck,
   } = useCheckStore();
+  const { checksRemaining, fetchUsage } = useAuthStore();
 
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const isProcessingShareRef = useRef(false);
+
+  // Refresh usage on mount
+  useEffect(() => {
+    fetchUsage();
+  }, []);
 
   useEffect(() => {
     const handleShareIntent = async () => {
@@ -133,6 +142,9 @@ export default function HomeScreen() {
               <Text style={[styles.tagline, { color: colors.textTertiary }]}>
                 Share a reel. Hear the truth.
               </Text>
+              <View style={styles.usageBadgeWrapper}>
+                <UsageBadge />
+              </View>
             </View>
 
             {/* Input Section */}
@@ -182,14 +194,14 @@ export default function HomeScreen() {
               {/* Check Button */}
               <TouchableOpacity
                 onPress={handleCheck}
-                disabled={!url || isLoading}
+                disabled={!url || isLoading || checksRemaining <= 0}
                 activeOpacity={0.8}
               >
                 <View
                   style={[
                     styles.checkButton,
                     {
-                      backgroundColor: (!url || isLoading)
+                      backgroundColor: (!url || isLoading || checksRemaining <= 0)
                         ? colors.sandstone
                         : colors.deepIndigo as string,
                     },
@@ -208,6 +220,11 @@ export default function HomeScreen() {
                 <Text style={[styles.infoText, { color: colors.textTertiary }]}>
                   Works with public reels only
                 </Text>
+              </View>
+
+              {/* Google Sign-In */}
+              <View style={styles.authSection}>
+                <GoogleSignInButton />
               </View>
             </View>
 
@@ -252,9 +269,9 @@ const styles = StyleSheet.create({
   },
   blob1: {
     position: 'absolute',
-    width: 220,
-    height: 220,
-    borderRadius: 110,
+    width: 209,
+    height: 209,
+    borderRadius: 105,
     top: -40,
     right: -60,
   },
@@ -303,14 +320,13 @@ const styles = StyleSheet.create({
     marginBottom: 36,
   },
   logoWrapper: {
-    borderRadius: 16,
-    overflow: 'hidden',
     marginBottom: 8,
   },
   logoWrapperDark: {
     backgroundColor: '#ffffff',
-    padding: 8,
-    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 14,
   },
   logo: {
     width: 312,
@@ -323,6 +339,9 @@ const styles = StyleSheet.create({
   tagline: {
     fontSize: 14,
     marginTop: 4,
+  },
+  usageBadgeWrapper: {
+    marginTop: 12,
   },
   inputSection: {
     marginBottom: 32,
@@ -384,6 +403,9 @@ const styles = StyleSheet.create({
   },
   infoText: {
     fontSize: 14,
+  },
+  authSection: {
+    marginTop: 20,
   },
   platformsContainer: {
     alignItems: 'center',
