@@ -11,4 +11,5 @@ starlette==0.37.2
 gunicorn==23.0.0
 duckduckgo-search==7.5.1
 google-auth==2.49.0
+google-genai==1.65.0
 requests==2.32.5
