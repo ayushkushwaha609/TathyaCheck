@@ -111,7 +111,7 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
       if (myId !== latestRequestId) return false;
 
       isRequestInFlight = false;
-      useAuthStore.getState().incrementUsage();
+      useAuthStore.getState().fetchUsage();
       set({ result: response.data, isLoading: false });
       return true;
     } catch (error: any) {

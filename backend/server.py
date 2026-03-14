@@ -893,7 +893,7 @@ async def get_usage(x_device_id: Optional[str] = Header(None)):
 async def health_check():
     return {"status": "ok"}
 
-@api_router.post("/check", response_model=CheckResponse, dependencies=[Depends(verify_api_key), Depends(verify_daily_limit)])
+@api_router.post("/check", response_model=CheckResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit("10/minute")
 async def check_claim(request: Request, body: CheckRequest):
     """Main endpoint - fact-check a video URL"""
@@ -912,13 +912,16 @@ async def check_claim(request: Request, body: CheckRequest):
     if language_code not in LANGUAGE_MAP:
         language_code = "hi-IN"  # Default to Hindi
 
-    # Check MongoDB cache — cached hits don't count against daily limit
+    # Check MongoDB cache — cached hits bypass daily limit
     cache_key = get_cache_key(url, language_code)
     cached = await checks_collection.find_one({"cache_key": cache_key}, {"_id": 0})
     if cached:
         logger.info(f"MongoDB cache hit for {cache_key}")
         return CheckResponse(**{k: v for k, v in cached.items() if k != "cache_key" and k != "created_at"})
-    
+
+    # Only enforce daily limit for non-cached (fresh) checks
+    await verify_daily_limit(request)
+
     pipeline_start = time.time()
     logger.info(f"Processing URL: {url} with language: {language_code}")
     
@@ -1046,15 +1049,11 @@ async def check_claim(request: Request, body: CheckRequest):
 # Include the router in the main app
 app.include_router(api_router)
 
-# CORS: allow configured origins, or fall back to permissive for mobile clients
-_cors_origins = os.environ.get('CORS_ORIGINS', '*')
-_allow_origins = [o.strip() for o in _cors_origins.split(',')] if _cors_origins != '*' else ["*"]
-
+# CORS: permissive — mobile clients don't send Origin, web clients use API key auth
 app.add_middleware(
     CORSMiddleware,
-    allow_credentials=True if _cors_origins != '*' else False,
-    allow_origins=_allow_origins,
-    allow_methods=["GET", "POST"],
+    allow_origins=["*"],
+    allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["Content-Type", "Authorization", "X-API-Key", "X-Device-Id"],
 )
 
