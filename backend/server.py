@@ -1,4 +1,5 @@
-from fastapi import FastAPI, APIRouter, HTTPException, Request
+from fastapi import FastAPI, APIRouter, HTTPException, Request, Depends, Security
+from fastapi.security import APIKeyHeader
 from dotenv import load_dotenv
 from starlette.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -50,6 +51,16 @@ if not RAPIDAPI_KEY and RAPIDAPI_KEYS:
 
 # Initialize Groq client
 groq_client = Groq(api_key=GROQ_API_KEY)
+
+# API key authentication
+APP_API_KEY = os.environ.get('APP_API_KEY', '')
+api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
+
+async def verify_api_key(api_key: str = Security(api_key_header)):
+    if not APP_API_KEY:
+        return  # No key configured = skip auth (dev mode)
+    if api_key != APP_API_KEY:
+        raise HTTPException(status_code=403, detail="Invalid or missing API key")
 
 # Rate limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -746,7 +757,7 @@ async def synthesize_speech(text: str, language_code: str) -> Optional[str]:
 async def health_check():
     return {"status": "ok"}
 
-@api_router.post("/check", response_model=CheckResponse)
+@api_router.post("/check", response_model=CheckResponse, dependencies=[Depends(verify_api_key)])
 @limiter.limit("10/minute")
 async def check_claim(request: Request, body: CheckRequest):
     """Main endpoint - fact-check a video URL"""

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import axios from 'axios';
 
 const API_URL = process.env.EXPO_PUBLIC_BACKEND_URL || 'https://tathya-api.onrender.com';
+const API_KEY = process.env.EXPO_PUBLIC_API_KEY || '';
 
 // Module-level counter: incremented on every runCheck call.
 // If a newer request starts while an older one is in-flight, the older
@@ -86,6 +87,7 @@ export const useCheckStore = create<CheckStore>((set, get) => ({
         language_code: languageCode,
       }, {
         timeout: 120000, // 2 minutes timeout
+        headers: API_KEY ? { 'X-API-Key': API_KEY } : {},
       });
 
       // Discard if a newer request has already been started

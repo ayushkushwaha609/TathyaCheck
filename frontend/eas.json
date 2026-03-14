@@ -6,17 +6,21 @@
   "build": {
     "preview": {
       "distribution": "internal",
+      "channel": "preview",
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com"
+        "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com",
+        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8"
       }
     },
     "production": {
+      "channel": "production",
       "android": {},
       "env": {
-        "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com"
+        "EXPO_PUBLIC_BACKEND_URL": "https://tathya-api.onrender.com",
+        "EXPO_PUBLIC_API_KEY": "7fqp2wPiXpytyrkDDIdbOIDvmhZZbbg9eJVClGcWvt8"
       }
     }
   }
