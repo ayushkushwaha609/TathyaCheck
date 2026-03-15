@@ -4,7 +4,7 @@
 
 Tathya extracts audio from short-form videos, transcribes it, runs an LLM-based fact-check, and reads the verdict back to you via text-to-speech in 6 Indian languages.
 
-### [📥 Download Android APK](https://expo.dev/accounts/ayushkush/projects/tathya/builds/82eaa326-c01e-4821-bfb9-3b6f441258a8)
+### [📥 Download Android APK](https://wf-artifacts.eascdn.net/builds/internal-st/7fd45bc7-f8c7-4926-84f9-7215ec3fd31a/d9f44895-39da-4462-a674-c36a78f5c2d0/019cefe5-f554-775e-8a5b-30546fbfd3b0/application-d9f44895-39da-4462-a674-c36a78f5c2d0.apk?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Content-Sha256=UNSIGNED-PAYLOAD&X-Amz-Credential=75d871a1a44e598975dd84fa2341c9b0%2F20260315%2Fus-east-1%2Fs3%2Faws4_request&X-Amz-Date=20260315T115719Z&X-Amz-Expires=900&X-Amz-Signature=d7ebd2cbb639a6d54f7b6fe0800a2585e9a4576bfae883448a5438ca77411217&X-Amz-SignedHeaders=host&x-amz-checksum-mode=ENABLED&x-id=GetObject)
 
 ---
 
