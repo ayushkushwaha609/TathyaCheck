@@ -12,6 +12,9 @@ import {
   Image,
   Linking,
   Modal,
+  Animated,
+  Dimensions,
+  TouchableWithoutFeedback,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -32,11 +35,15 @@ function extractUrl(text: string): string {
 }
 
 const FEEDBACK_URL = 'https://forms.gle/1g3Zv273vzsxDRmy6';
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const DRAWER_WIDTH = SCREEN_WIDTH * 0.75;
 
 export default function HomeScreen() {
   const router = useRouter();
   const { colors, isDark, toggleTheme } = useThemeStore();
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [drawerVisible, setDrawerVisible] = useState(false);
+  const slideAnim = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const {
     url,
     setUrl,
@@ -46,16 +53,14 @@ export default function HomeScreen() {
     error,
     runCheck,
   } = useCheckStore();
-  const { ytChecksRemaining, igChecksRemaining, isExempt, fetchUsage } = useAuthStore();
+  const { ytChecksRemaining, igChecksRemaining, isExempt, isAuthenticated, googleEmail, fetchUsage } = useAuthStore();
 
-  // Determine platform from URL to check correct limit
   const isYouTubeUrl = /(youtube\.com|youtu\.be)/i.test(url);
   const checksRemaining = isYouTubeUrl ? ytChecksRemaining : igChecksRemaining;
 
   const { hasShareIntent, shareIntent, resetShareIntent } = useShareIntentContext();
   const isProcessingShareRef = useRef(false);
 
-  // Refresh usage on mount
   useEffect(() => {
     fetchUsage();
   }, []);
@@ -63,41 +68,37 @@ export default function HomeScreen() {
   useEffect(() => {
     const handleShareIntent = async () => {
       if (!hasShareIntent || isProcessingShareRef.current) return;
-
       const sharedText = shareIntent?.webUrl || shareIntent?.text || '';
-      if (!sharedText) {
-        resetShareIntent();
-        return;
-      }
-
+      if (!sharedText) { resetShareIntent(); return; }
       const cleanUrl = extractUrl(sharedText);
-
       if (cleanUrl && /(instagram\.com|instagr\.am|youtube\.com|youtu\.be)/i.test(cleanUrl)) {
         isProcessingShareRef.current = true;
         useCheckStore.setState({ result: null, error: null, isLoading: false });
         setUrl(cleanUrl);
         resetShareIntent();
-
         const success = await useCheckStore.getState().runCheck(cleanUrl);
-        if (success) {
-          router.push('/result');
-        }
+        if (success) { router.push('/result'); }
         isProcessingShareRef.current = false;
-      } else {
-        resetShareIntent();
-      }
+      } else { resetShareIntent(); }
     };
-
     handleShareIntent();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hasShareIntent]);
+
+  const openDrawer = () => {
+    setDrawerVisible(true);
+    Animated.timing(slideAnim, { toValue: 0, duration: 250, useNativeDriver: true }).start();
+  };
+
+  const closeDrawer = () => {
+    Animated.timing(slideAnim, { toValue: -DRAWER_WIDTH, duration: 200, useNativeDriver: true }).start(() => {
+      setDrawerVisible(false);
+    });
+  };
 
   const handleCheck = async () => {
     Keyboard.dismiss();
     const success = await runCheck();
-    if (success) {
-      router.push('/result');
-    }
+    if (success) { router.push('/result'); }
   };
 
   return (
@@ -119,17 +120,19 @@ export default function HomeScreen() {
             contentContainerStyle={styles.scrollContent}
             keyboardShouldPersistTaps="handled"
           >
-            {/* Theme Toggle */}
-            <View style={styles.toggleRow}>
+            {/* Top Bar */}
+            <View style={styles.topBar}>
               <TouchableOpacity
-                style={[styles.themeToggle, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+                style={[styles.iconButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
+                onPress={openDrawer}
+              >
+                <Ionicons name="menu" size={20} color={colors.textPrimary} />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.iconButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
                 onPress={toggleTheme}
               >
-                <Ionicons
-                  name={isDark ? 'sunny' : 'moon'}
-                  size={18}
-                  color={colors.saffron}
-                />
+                <Ionicons name={isDark ? 'sunny' : 'moon'} size={18} color={colors.saffron} />
               </TouchableOpacity>
             </View>
 
@@ -137,19 +140,13 @@ export default function HomeScreen() {
             <View style={styles.header}>
               <View style={styles.logoWrapper}>
                 <Image
-                  source={isDark
-                    ? require('../assets/images/logodark.png')
-                    : require('../assets/images/logo.png')}
+                  source={isDark ? require('../assets/images/logodark.png') : require('../assets/images/logo.png')}
                   style={styles.logo}
                   resizeMode="contain"
                 />
               </View>
-              <Text style={[styles.taglineHindi, { color: colors.saffron }]}>
-                तथ्य की जांच
-              </Text>
-              <Text style={[styles.tagline, { color: colors.textTertiary }]}>
-                Share a reel. Hear the truth.
-              </Text>
+              <Text style={[styles.taglineHindi, { color: colors.saffron }]}>तथ्य की जांच</Text>
+              <Text style={[styles.tagline, { color: colors.textTertiary }]}>Share a reel. Hear the truth.</Text>
               <View style={styles.usageBadgeWrapper}>
                 <UsageBadge />
               </View>
@@ -157,16 +154,9 @@ export default function HomeScreen() {
 
             {/* Input Section */}
             <View style={styles.inputSection}>
-              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
-                Paste Video Link
-              </Text>
+              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>Paste Video Link</Text>
               <View style={[styles.inputContainer, { backgroundColor: colors.inputBg, borderColor: colors.cardBorder }]}>
-                <Ionicons
-                  name="link"
-                  size={20}
-                  color={colors.textTertiary}
-                  style={styles.inputIcon}
-                />
+                <Ionicons name="link" size={20} color={colors.textTertiary} style={styles.inputIcon} />
                 <TextInput
                   style={[styles.textInput, { color: colors.textPrimary }]}
                   placeholder="Instagram or YouTube link"
@@ -191,13 +181,8 @@ export default function HomeScreen() {
                 </View>
               )}
 
-              <Text style={[styles.inputLabel, { color: colors.textPrimary }]}>
-                Select Language
-              </Text>
-              <LanguagePicker
-                selectedValue={languageCode}
-                onValueChange={setLanguageCode}
-              />
+              <Text style={[styles.inputLabel, { color: colors.textPrimary, marginTop: 20 }]}>Select Language</Text>
+              <LanguagePicker selectedValue={languageCode} onValueChange={setLanguageCode} />
 
               {/* Check Button */}
               <TouchableOpacity
@@ -216,67 +201,120 @@ export default function HomeScreen() {
                   ]}
                 >
                   <Text style={styles.checkButtonText}>Check</Text>
-                  <Text style={[styles.checkButtonHindi, { color: colors.warmOrange }]}>
-                    जांचें
-                  </Text>
+                  <Text style={[styles.checkButtonHindi, { color: colors.warmOrange }]}>जांचें</Text>
                   <Ionicons name="arrow-forward" size={20} color="#fff" />
                 </View>
               </TouchableOpacity>
 
               <View style={styles.infoContainer}>
                 <Ionicons name="information-circle" size={16} color={colors.textTertiary} />
-                <Text style={[styles.infoText, { color: colors.textTertiary }]}>
-                  Works with public reels only
-                </Text>
+                <Text style={[styles.infoText, { color: colors.textTertiary }]}>Works with public reels only</Text>
               </View>
 
-              {/* Google Sign-In */}
-              <View style={styles.authSection}>
-                <GoogleSignInButton />
-              </View>
-
-              {/* Disclaimer & Feedback */}
-              <View style={styles.actionRow}>
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-                  onPress={() => setShowDisclaimer(true)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="information-circle-outline" size={16} color={colors.textTertiary} />
-                  <Text style={[styles.actionButtonText, { color: colors.textTertiary }]}>Why limits?</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.actionButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-                  onPress={() => Linking.openURL(FEEDBACK_URL)}
-                  activeOpacity={0.7}
-                >
-                  <Ionicons name="chatbubble-outline" size={16} color={colors.textTertiary} />
-                  <Text style={[styles.actionButtonText, { color: colors.textTertiary }]}>Feedback</Text>
-                </TouchableOpacity>
-              </View>
+              {/* Google Sign-In — only show on main screen if not signed in */}
+              {!isAuthenticated && (
+                <View style={styles.authSection}>
+                  <GoogleSignInButton />
+                </View>
+              )}
             </View>
 
-            {/* Supported Platforms */}
-            <View style={styles.platformsContainer}>
-              <Text style={[styles.platformsLabel, { color: colors.textTertiary }]}>
-                Supported Platforms
+            {/* Footer */}
+            <View style={styles.footer}>
+              <TouchableOpacity onPress={() => setShowDisclaimer(true)} activeOpacity={0.7}>
+                <Text style={[styles.footerLink, { color: colors.textTertiary }]}>Why limits?</Text>
+              </TouchableOpacity>
+              <Text style={[styles.footerDot, { color: colors.textTertiary }]}>  ·  </Text>
+              <Text style={[styles.footerText, { color: colors.textTertiary }]}>
+                Works with Instagram & YouTube
               </Text>
-              <View style={styles.platformsRow}>
-                <View style={[styles.platformBadge, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                  <Ionicons name="logo-instagram" size={20} color="#E1306C" />
-                  <Text style={[styles.platformText, { color: colors.textPrimary }]}>Instagram</Text>
-                </View>
-                <View style={[styles.platformBadge, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}>
-                  <Ionicons name="logo-youtube" size={20} color="#FF0000" />
-                  <Text style={[styles.platformText, { color: colors.textPrimary }]}>YouTube</Text>
-                </View>
-              </View>
             </View>
           </ScrollView>
         </KeyboardAvoidingView>
 
         {isLoading && <LoadingOverlay />}
+
+        {/* Side Drawer via Modal */}
+        <Modal
+          visible={drawerVisible}
+          transparent
+          animationType="none"
+          onRequestClose={closeDrawer}
+        >
+          <View style={styles.drawerOverlay}>
+            {/* Tap outside to close */}
+            <TouchableWithoutFeedback onPress={closeDrawer}>
+              <View style={styles.drawerBackdrop} />
+            </TouchableWithoutFeedback>
+
+            {/* Drawer panel */}
+            <Animated.View
+              style={[
+                styles.drawer,
+                {
+                  backgroundColor: colors.gradientEnd,
+                  borderRightColor: colors.cardBorder,
+                  transform: [{ translateX: slideAnim }],
+                },
+              ]}
+            >
+              <SafeAreaView style={styles.drawerInner}>
+                {/* Drawer header */}
+                <View style={styles.drawerHeader}>
+                  <Text style={[styles.drawerTitle, { color: colors.textPrimary }]}>Menu</Text>
+                  <TouchableOpacity onPress={closeDrawer}>
+                    <Ionicons name="close" size={24} color={colors.textTertiary} />
+                  </TouchableOpacity>
+                </View>
+
+                {/* Account section */}
+                <View style={[styles.drawerSection, { borderBottomColor: colors.cardBorder }]}>
+                  {isAuthenticated && (
+                    <View style={styles.drawerAccountRow}>
+                      <View style={[styles.drawerAvatar, { backgroundColor: colors.deepIndigo as string }]}>
+                        <Ionicons name="person" size={18} color="#fff" />
+                      </View>
+                      <View style={styles.drawerAccountInfo}>
+                        <Text style={[styles.drawerEmail, { color: colors.textPrimary }]} numberOfLines={1}>
+                          {googleEmail}
+                        </Text>
+                        <Text style={[styles.drawerLabel, { color: colors.textTertiary }]}>Signed in</Text>
+                      </View>
+                    </View>
+                  )}
+                  <GoogleSignInButton />
+                </View>
+
+                {/* Menu items */}
+                <View style={styles.drawerMenu}>
+                  <TouchableOpacity
+                    style={styles.drawerMenuItem}
+                    onPress={() => { closeDrawer(); Linking.openURL(FEEDBACK_URL); }}
+                  >
+                    <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />
+                    <Text style={[styles.drawerMenuText, { color: colors.textPrimary }]}>Feedback</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.drawerMenuItem}
+                    onPress={() => { closeDrawer(); Linking.openURL('https://buymeachai.ezee.li/ayushkushwaha'); }}
+                  >
+                    <Ionicons name="heart-outline" size={20} color="#e74c8b" />
+                    <Text style={[styles.drawerMenuText, { color: colors.textPrimary }]}>Support Us</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.drawerMenuItem}
+                    onPress={() => { closeDrawer(); Linking.openURL('https://ayushkushwaha609.github.io/TathyaCheck/privacy.html'); }}
+                  >
+                    <Ionicons name="shield-checkmark-outline" size={20} color={colors.textSecondary} />
+                    <Text style={[styles.drawerMenuText, { color: colors.textPrimary }]}>Privacy Policy</Text>
+                  </TouchableOpacity>
+                </View>
+              </SafeAreaView>
+            </Animated.View>
+          </View>
+        </Modal>
 
         {/* Disclaimer Modal */}
         <Modal
@@ -295,31 +333,33 @@ export default function HomeScreen() {
                 <Ionicons name="information-circle" size={24} color={colors.saffron} />
                 <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>About Usage Limits</Text>
               </View>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                TathyaQuest uses multiple AI and third-party APIs to verify claims, and each check incurs real infrastructure costs on our end.
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                To keep the service free and accessible while we work toward a sustainable model, we've introduced daily usage limits — 10 YouTube / 3 Instagram checks without sign-in, and 15 YouTube / 5 Instagram with a Google account.
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                We're actively working on a freemium plan that will offer higher limits. Your continued usage helps us understand demand and shape the right pricing.
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                Thank you for supporting TathyaQuest while we grow.
-              </Text>
-              <View style={styles.modalDivider} />
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                TathyaQuest दावों की जाँच के लिए कई AI और थर्ड-पार्टी APIs का उपयोग करता है, और हर जाँच पर हमें वास्तविक इंफ्रास्ट्रक्चर लागत आती है।
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                सेवा को मुफ़्त और सबके लिए सुलभ बनाए रखने के लिए, जब तक हम एक टिकाऊ मॉडल पर काम कर रहे हैं, हमने दैनिक उपयोग सीमाएँ तय की हैं — बिना साइन-इन के 10 YouTube / 3 Instagram जाँच, और Google अकाउंट से साइन-इन करने पर 15 YouTube / 5 Instagram जाँच।
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                हम एक फ्रीमियम प्लान पर सक्रिय रूप से काम कर रहे हैं जिसमें अधिक सीमाएँ उपलब्ध होंगी। आपका निरंतर उपयोग हमें माँग को समझने और सही मूल्य निर्धारण तय करने में मदद करता है।
-              </Text>
-              <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
-                TathyaQuest को बढ़ने में सहयोग देने के लिए आपका धन्यवाद!
-              </Text>
+              <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={true}>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  TathyaQuest uses multiple AI and third-party APIs to verify claims, and each check incurs real infrastructure costs on our end.
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  To keep the service free and accessible while we work toward a sustainable model, we've introduced daily usage limits — 10 YouTube / 3 Instagram checks without sign-in, and 15 YouTube / 5 Instagram with a Google account.
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  We're actively working on a freemium plan that will offer higher limits. Your continued usage helps us understand demand and shape the right pricing.
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  Thank you for supporting TathyaQuest while we grow.
+                </Text>
+                <View style={styles.modalDivider} />
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  TathyaQuest दावों की जाँच के लिए कई AI और थर्ड-पार्टी APIs का उपयोग करता है, और हर जाँच पर हमें वास्तविक इंफ्रास्ट्रक्चर लागत आती है।
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  सेवा को मुफ़्त और सबके लिए सुलभ बनाए रखने के लिए, जब तक हम एक टिकाऊ मॉडल पर काम कर रहे हैं, हमने दैनिक उपयोग सीमाएँ तय की हैं — बिना साइन-इन के 10 YouTube / 3 Instagram जाँच, और Google अकाउंट से साइन-इन करने पर 15 YouTube / 5 Instagram जाँच।
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  हम एक फ्रीमियम प्लान पर सक्रिय रूप से काम कर रहे हैं जिसमें अधिक सीमाएँ उपलब्ध होंगी। आपका निरंतर उपयोग हमें माँग को समझने और सही मूल्य निर्धारण तय करने में मदद करता है।
+                </Text>
+                <Text style={[styles.modalBody, { color: colors.textSecondary }]}>
+                  TathyaQuest को बढ़ने में सहयोग देने के लिए आपका धन्यवाद!
+                </Text>
+              </ScrollView>
               <TouchableOpacity
                 style={[styles.modalClose, { backgroundColor: colors.deepIndigo as string }]}
                 onPress={() => setShowDisclaimer(false)}
@@ -329,277 +369,68 @@ export default function HomeScreen() {
             </View>
           </TouchableOpacity>
         </Modal>
-
-        {/* Donation Button */}
-        <TouchableOpacity
-          style={[styles.donateButton, { backgroundColor: colors.card, borderColor: colors.cardBorder }]}
-          onPress={() => Linking.openURL('https://buymeachai.ezee.li/ayushkushwaha')}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="heart" size={16} color="#e74c8b" />
-          <Text style={[styles.donateText, { color: colors.textPrimary }]}>Support</Text>
-        </TouchableOpacity>
       </SafeAreaView>
     </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  gradient: {
-    flex: 1,
-  },
-  blob1: {
-    position: 'absolute',
-    width: 209,
-    height: 209,
-    borderRadius: 105,
-    top: -40,
-    right: -60,
-  },
-  blob2: {
-    position: 'absolute',
-    width: 180,
-    height: 180,
-    borderRadius: 90,
-    top: 160,
-    left: -50,
-  },
-  blob3: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    bottom: 120,
-    right: -30,
-  },
-  container: {
-    flex: 1,
-  },
-  keyboardView: {
-    flex: 1,
-  },
-  scrollContent: {
-    flexGrow: 1,
-    paddingHorizontal: 24,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
-  toggleRow: {
-    alignItems: 'flex-end',
-    marginBottom: 4,
-  },
-  themeToggle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-  },
-  header: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 36,
-  },
-  logoWrapper: {
-    marginBottom: 0,
-    alignItems: 'center',
-  },
-  logoWrapperDark: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 14,
-  },
-  logo: {
-    width: 312,
-    height: 125,
-  },
-  taglineHindi: {
-    fontSize: 16,
-    fontWeight: '500',
-    textAlign: 'center',
-  },
-  tagline: {
-    fontSize: 14,
-    marginTop: 2,
-    textAlign: 'center',
-  },
-  usageBadgeWrapper: {
-    marginTop: 8,
-  },
-  inputSection: {
-    marginBottom: 32,
-  },
-  inputLabel: {
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 8,
-    marginTop: 16,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-  },
-  inputIcon: {
-    marginRight: 12,
-  },
-  textInput: {
-    flex: 1,
-    fontSize: 16,
-    paddingVertical: 14,
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-    gap: 6,
-  },
-  errorText: {
-    fontSize: 14,
-  },
-  checkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 14,
-    paddingVertical: 16,
-    marginTop: 24,
-    gap: 8,
-  },
-  checkButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  checkButtonHindi: {
-    fontSize: 16,
-    fontWeight: '500',
-  },
-  infoContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 16,
-    gap: 6,
-  },
-  infoText: {
-    fontSize: 14,
-  },
-  authSection: {
-    marginTop: 20,
-  },
-  platformsContainer: {
-    alignItems: 'center',
-  },
-  platformsLabel: {
-    fontSize: 12,
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  platformsRow: {
-    flexDirection: 'row',
-    gap: 16,
-  },
-  platformBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
-    gap: 8,
-    borderWidth: 1,
-  },
-  platformText: {
-    fontSize: 14,
-  },
-  donateButton: {
-    position: 'absolute',
-    bottom: 24,
-    right: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 6,
-    elevation: 3,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-  },
-  donateText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  actionRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 12,
-    marginTop: 16,
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    gap: 6,
-  },
-  actionButtonText: {
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  modalContent: {
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 24,
-    width: '100%',
-    maxWidth: 400,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 16,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalDivider: {
-    height: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    marginVertical: 8,
-  },
-  modalBody: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginBottom: 12,
-  },
-  modalClose: {
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderRadius: 10,
-    marginTop: 8,
-  },
-  modalCloseText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
+  gradient: { flex: 1 },
+  blob1: { position: 'absolute', width: 209, height: 209, borderRadius: 105, top: -40, right: -60 },
+  blob2: { position: 'absolute', width: 180, height: 180, borderRadius: 90, top: 160, left: -50 },
+  blob3: { position: 'absolute', width: 140, height: 140, borderRadius: 70, bottom: 120, right: -30 },
+  container: { flex: 1 },
+  keyboardView: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingHorizontal: 24, paddingTop: 8, paddingBottom: 24 },
+  topBar: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
+  iconButton: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  header: { alignItems: 'center', justifyContent: 'center', marginBottom: 28 },
+  logoWrapper: { marginBottom: 0, alignItems: 'center' },
+  logo: { width: 312, height: 125 },
+  taglineHindi: { fontSize: 16, fontWeight: '500', textAlign: 'center' },
+  tagline: { fontSize: 14, marginTop: 2, textAlign: 'center' },
+  usageBadgeWrapper: { marginTop: 10 },
+  inputSection: { marginBottom: 24 },
+  inputLabel: { fontSize: 14, fontWeight: '600', marginBottom: 8, marginTop: 8 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', borderRadius: 14, paddingHorizontal: 16, borderWidth: 1 },
+  inputIcon: { marginRight: 12 },
+  textInput: { flex: 1, fontSize: 16, paddingVertical: 14 },
+  errorContainer: { flexDirection: 'row', alignItems: 'center', marginTop: 8, gap: 6 },
+  errorText: { fontSize: 14 },
+  checkButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', borderRadius: 14, paddingVertical: 16, marginTop: 28, gap: 8 },
+  checkButtonText: { color: '#ffffff', fontSize: 18, fontWeight: '600' },
+  checkButtonHindi: { fontSize: 16, fontWeight: '500' },
+  infoContainer: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginTop: 14, gap: 6 },
+  infoText: { fontSize: 14 },
+  authSection: { marginTop: 24 },
+  footer: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', marginTop: 'auto', paddingTop: 16, paddingBottom: 8 },
+  footerLink: { fontSize: 12, textDecorationLine: 'underline' },
+  footerDot: { fontSize: 12 },
+  footerText: { fontSize: 12 },
+  // Drawer
+  drawerOverlay: { flex: 1, flexDirection: 'row' },
+  drawerBackdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)' },
+  drawer: { position: 'absolute', top: 0, left: 0, bottom: 0, width: DRAWER_WIDTH, borderRightWidth: 1, elevation: 8, shadowColor: '#000', shadowOffset: { width: 2, height: 0 }, shadowOpacity: 0.25, shadowRadius: 8 },
+  drawerInner: { flex: 1, paddingHorizontal: 20, paddingTop: 8 },
+  drawerHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 },
+  drawerTitle: { fontSize: 20, fontWeight: '700' },
+  drawerSection: { paddingBottom: 20, marginBottom: 20, borderBottomWidth: 1 },
+  drawerAccountRow: { flexDirection: 'row', alignItems: 'center', marginBottom: 14, gap: 12 },
+  drawerAvatar: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  drawerAccountInfo: { flex: 1 },
+  drawerEmail: { fontSize: 14, fontWeight: '600' },
+  drawerLabel: { fontSize: 12, marginTop: 2 },
+  drawerMenu: { gap: 4 },
+  drawerMenuItem: { flexDirection: 'row', alignItems: 'center', gap: 14, paddingVertical: 14, paddingHorizontal: 4 },
+  drawerMenuText: { fontSize: 15, fontWeight: '500' },
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.6)', justifyContent: 'center', alignItems: 'center', padding: 24 },
+  modalContent: { borderRadius: 16, borderWidth: 1, padding: 24, width: '100%', maxWidth: 400, maxHeight: '70%' },
+  modalScroll: { marginBottom: 8 },
+  modalHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 16 },
+  modalTitle: { fontSize: 18, fontWeight: '700' },
+  modalDivider: { height: 1, backgroundColor: 'rgba(255,255,255,0.1)', marginVertical: 8 },
+  modalBody: { fontSize: 14, lineHeight: 20, marginBottom: 12 },
+  modalClose: { alignItems: 'center', paddingVertical: 12, borderRadius: 10, marginTop: 8 },
+  modalCloseText: { color: '#ffffff', fontSize: 15, fontWeight: '600' },
 });
