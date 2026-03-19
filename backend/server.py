@@ -856,7 +856,7 @@ Return ONLY this JSON with no other text:
                 ],
                 config=genai_types.GenerateContentConfig(
                     temperature=0.2,
-                    max_output_tokens=4000,
+                    max_output_tokens=8000,
                 ),
             )
 
@@ -1240,9 +1240,9 @@ async def check_claim(request: Request, body: CheckRequest):
 
         # --- Shared: TTS + cache + usage logging ---
         step4_start = time.time()
-        audio_text = result.get("verdict_text_regional", result["verdict_text"])
+        audio_text = result.get("verdict_text_regional") or result.get("verdict_text") or result.get("reason_regional") or result.get("reason", "")
         logger.info(f"Generating speech for {language_code}, text ({len(audio_text)} chars): {audio_text[:100]}...")
-        audio_base64 = await synthesize_speech(audio_text, language_code)
+        audio_base64 = await synthesize_speech(audio_text, language_code) if audio_text.strip() else None
         step4_dur = time.time() - step4_start
         logger.info(f"⏱ Step 4 - TTS (Sarvam AI): {step4_dur:.2f}s")
 
