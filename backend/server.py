@@ -464,8 +464,9 @@ async def extract_search_queries(transcript: str) -> list[str]:
                     {"role": "system", "content": (
                         "Read the ENTIRE transcript carefully from start to finish. "
                         "Identify up to 3 distinct factual claims made throughout the video — cover ALL topics discussed, not just the first one. "
+                        "YOU MUST RESPOND IN ENGLISH ONLY — translate claims to English if the transcript is in another language. "
                         "Return ONLY a numbered list, one claim per line in English (max 15 words each), like:\n"
-                        "1. <claim one>\n2. <claim two>\n3. <claim three>"
+                        "1. <claim one in English>\n2. <claim two in English>\n3. <claim three in English>"
                     )},
                     {"role": "user", "content": transcript[:8000]}
                 ],
