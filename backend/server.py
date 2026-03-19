@@ -454,26 +454,37 @@ async def transcribe_audio(audio_path: str) -> str:
             )
     return await asyncio.to_thread(_sync_transcribe)
 
-async def extract_search_query(transcript: str) -> str:
-    """Extract the main claim from transcript in English for web searching"""
+async def extract_search_queries(transcript: str) -> list[str]:
+    """Extract up to 3 key factual claims from the full transcript for multi-topic web searching"""
     try:
         def _sync_extract():
             return groq_client.chat.completions.create(
                 model="llama-3.3-70b-versatile",
                 messages=[
-                    {"role": "system", "content": "Extract the most important factual claim from this transcript in one short English sentence (max 15 words). Consider the entire transcript, not just the beginning. Return ONLY the claim, nothing else."},
+                    {"role": "system", "content": (
+                        "Read the ENTIRE transcript carefully from start to finish. "
+                        "Identify up to 3 distinct factual claims made throughout the video — cover ALL topics discussed, not just the first one. "
+                        "Return ONLY a numbered list, one claim per line in English (max 15 words each), like:\n"
+                        "1. <claim one>\n2. <claim two>\n3. <claim three>"
+                    )},
                     {"role": "user", "content": transcript[:8000]}
                 ],
                 temperature=0.0,
-                max_tokens=50,
+                max_tokens=120,
             )
         response = await asyncio.to_thread(_sync_extract)
-        query = response.choices[0].message.content.strip().strip('"')
-        logger.info(f"Extracted search query: {query}")
-        return query
+        raw = response.choices[0].message.content.strip()
+        queries = []
+        for line in raw.splitlines():
+            line = line.strip().lstrip("123456789.-) ").strip().strip('"')
+            if line:
+                queries.append(line)
+        queries = queries[:3]
+        logger.info(f"Extracted search queries: {queries}")
+        return queries
     except Exception as e:
-        logger.warning(f"Failed to extract search query: {e}")
-        return ""
+        logger.warning(f"Failed to extract search queries: {e}")
+        return []
 
 async def web_search(query: str) -> str:
     """Search the web using DuckDuckGo for fact-checking context"""
@@ -501,81 +512,98 @@ async def web_search(query: str) -> str:
 async def fact_check_transcript(transcript: str, language_code: str) -> dict:
     """Fact-check the transcript using DuckDuckGo Search + Groq Llama"""
     transcript = transcript[:12000]
-    
+
     lang_key, language_name = LANGUAGE_MAP.get(language_code, ("hindi", "Hindi"))
-    
-    # Step 1: Extract main claim in English and search the web
-    search_query = await extract_search_query(transcript)
-    web_context = await web_search(search_query)
-    
+
+    # Step 1: Extract ALL key claims, then run parallel web searches for each
+    search_queries = await extract_search_queries(transcript)
+    if search_queries:
+        web_results = await asyncio.gather(*[web_search(q) for q in search_queries])
+        combined_web_context = ""
+        for i, (q, ctx) in enumerate(zip(search_queries, web_results)):
+            if ctx:
+                combined_web_context += f"\n[Search {i+1}: \"{q}\"]\n{ctx}\n"
+    else:
+        combined_web_context = ""
+
     web_context_block = ""
-    if web_context:
-        web_context_block = f"""\n\nWEB SEARCH RESULTS (use these to verify claims against current real-world information):
+    if combined_web_context:
+        web_context_block = f"""\n\nWEB SEARCH RESULTS (use these to verify ALL claims against current real-world information):
 \"\"\"
-{web_context}
+{combined_web_context}
 \"\"\"\n"""
 
-    system_prompt = """You are an expert fact-checker with broad knowledge across topics including science, history, current affairs, technology, health, finance, and general knowledge.
+    system_prompt = """You are an expert fact-checker with broad knowledge across science, history, current affairs, technology, health, finance, and general knowledge.
 
-IMPORTANT RULES:
-1. You ONLY fact-check claims that are EXPLICITLY stated in the video transcript. Do NOT infer or assume claims.
-2. Be OBJECTIVE - stick to verifiable facts, not opinions or interpretations.
-3. Your confidence score should reflect how certain you are about the factual accuracy, using precise numbers (e.g., 73, 87, 91) - NOT round numbers like 50, 60, 70.
-4. If something is MISLEADING, you MUST explain exactly WHY it is misleading and what the correct information is.
-5. Provide thorough, educational explanations that help users understand the truth.
-6. USE the web search results provided to verify claims against up-to-date real-world information. Prefer web search evidence over your training data for current events and recent facts.
-7. If web search results contradict a claim, cite the source in your sources_note.
+CRITICAL RULES:
+1. Read the ENTIRE transcript from start to finish. Identify EVERY distinct factual claim made throughout the video — do NOT stop at the first topic.
+2. Fact-check ALL claims found across the whole video, not just the opening claim.
+3. Be OBJECTIVE — only check verifiable facts, not opinions or predictions.
+4. Your confidence score must use precise numbers (e.g., 73, 87, 91) — NOT round numbers like 50, 60, 70.
+5. For key_points: each item must follow format "CLAIM: <claim text> → VERDICT: <TRUE/FALSE/MISLEADING/PARTIALLY_TRUE> — <one sentence reason>"
+6. USE the web search results (provided per claim) to verify against up-to-date information.
+7. If any single claim is FALSE or MISLEADING, the overall verdict must reflect that.
+8. The overall verdict should be the WORST verdict across all individual claims (e.g., if one claim is FALSE and another TRUE, overall = FALSE).
 
 Always return ONLY valid JSON. No explanation outside the JSON object."""
 
-    # Build a different JSON template for English vs bilingual
     is_english_only = (lang_key == "english")
 
     if is_english_only:
-        json_template = """{{
-  "claim": "One clear sentence summarizing the main claim",
+        json_template = """{
+  "claim": "Overall summary: the video makes N claims about [topics]. Example: 'Video makes 2 claims: X and Y'",
   "verdict": "TRUE" or "FALSE" or "MISLEADING" or "PARTIALLY_TRUE",
-  "confidence": integer 0-100 (use specific numbers like 73, 84, 91),
+  "confidence": integer 0-100,
   "category": "health" or "science" or "history" or "technology" or "finance" or "news" or "general",
-  "key_points": ["Point 1", "Point 2"],
-  "reason": "1-2 sentences explaining verdict",
-  "why_misleading": "If MISLEADING/PARTIALLY_TRUE: 1-2 sentences why. Otherwise empty string.",
-  "fact_details": "2-3 sentences about the actual facts",
-  "what_to_know": "1-2 sentences of practical advice",
+  "key_points": [
+    "CLAIM: <first claim> → VERDICT: <verdict> — <reason>",
+    "CLAIM: <second claim> → VERDICT: <verdict> — <reason>",
+    "CLAIM: <third claim if any> → VERDICT: <verdict> — <reason>"
+  ],
+  "reason": "1-2 sentences explaining the overall verdict across ALL claims",
+  "why_misleading": "If any claim is MISLEADING/PARTIALLY_TRUE/FALSE: explain which claim and why. Otherwise empty string.",
+  "fact_details": "2-3 sentences covering the actual facts for ALL claims discussed",
+  "what_to_know": "1-2 sentences of practical advice covering all topics in the video",
   "sources_note": "Brief source note",
-  "verdict_spoken": "2-3 sentence spoken explanation suitable for text-to-speech"
-}}"""
-        language_instruction = "Provide ALL content in English. Keep responses CONCISE to fit within limits."
+  "verdict_spoken": "2-3 sentence spoken summary covering ALL claims in the video"
+}"""
+        language_instruction = "Provide ALL content in English."
     else:
         json_template = f"""{{
-  "claim": "One clear sentence summarizing the main claim (English)",
-  "claim_{lang_key}": "Same claim in {language_name}",
+  "claim": "Overall summary of ALL claims in video (English)",
+  "claim_{lang_key}": "Same summary in {language_name}",
   "verdict": "TRUE" or "FALSE" or "MISLEADING" or "PARTIALLY_TRUE",
-  "confidence": integer 0-100 (use specific numbers like 73, 84, 91),
+  "confidence": integer 0-100,
   "category": "health" or "science" or "history" or "technology" or "finance" or "news" or "general",
-  "key_points": ["Point 1 English", "Point 2 English"],
-  "key_points_{lang_key}": ["Point 1 {language_name}", "Point 2 {language_name}"],
-  "reason": "1-2 sentences explaining verdict in English",
+  "key_points": [
+    "CLAIM: <first claim> → VERDICT: <verdict> — <reason>",
+    "CLAIM: <second claim> → VERDICT: <verdict> — <reason>",
+    "CLAIM: <third claim if any> → VERDICT: <verdict> — <reason>"
+  ],
+  "key_points_{lang_key}": [
+    "दावा: <first claim in {language_name}> → निर्णय: <verdict> — <reason in {language_name}>",
+    "दावा: <second claim in {language_name}> → निर्णय: <verdict> — <reason in {language_name}>"
+  ],
+  "reason": "1-2 sentences explaining overall verdict across ALL claims (English)",
   "reason_{lang_key}": "Same in {language_name}",
-  "why_misleading": "If MISLEADING/PARTIALLY_TRUE: 1-2 sentences why. Otherwise empty string.",
+  "why_misleading": "Which specific claim is misleading/false and why (English). Empty string if all TRUE.",
   "why_misleading_{lang_key}": "Same in {language_name} or empty string",
-  "fact_details": "2-3 sentences about the actual facts (English)",
+  "fact_details": "2-3 sentences covering actual facts for ALL claims (English)",
   "fact_details_{lang_key}": "Same in {language_name}",
-  "what_to_know": "1-2 sentences of practical advice (English)",
+  "what_to_know": "1-2 sentences of practical advice covering all topics (English)",
   "what_to_know_{lang_key}": "Same in {language_name}",
   "sources_note": "Brief source note (English only)",
-  "verdict_english": "2-3 sentence spoken explanation in English",
-  "verdict_{lang_key}": "Same 2-3 sentence explanation in {language_name}"
+  "verdict_english": "2-3 sentence spoken summary covering ALL claims in English",
+  "verdict_{lang_key}": "Same 2-3 sentence summary in {language_name}"
 }}"""
-        language_instruction = f"Provide ALL content in BOTH English AND {language_name}. Keep responses CONCISE to fit within limits."
+        language_instruction = f"Provide ALL content in BOTH English AND {language_name}."
 
-    user_prompt = f"""
-Video transcript (this is EXACTLY what was said in the video):
+    user_prompt = f"""Read this COMPLETE video transcript from start to finish:
 \"\"\"
 {transcript}
 \"\"\"
 {web_context_block}
-TASK: Fact-check ONLY the specific claims made in this transcript. Use the web search results (if available) to verify claims against current real-world information. Do not evaluate opinions, predictions, or subjective statements - only verifiable factual claims.
+TASK: Identify and fact-check EVERY distinct factual claim made throughout the ENTIRE video. Cover ALL topics discussed — do not focus only on the first topic. Use the web search results above (one set per claim) to verify each claim against real-world information.
 
 IMPORTANT: {language_instruction}
 
@@ -594,7 +622,7 @@ Return ONLY this JSON with no other text:
             max_tokens=4000,
         )
     response = await asyncio.to_thread(_sync_fact_check)
-    
+
     response_text = response.choices[0].message.content.strip()
     return _parse_fact_check_json(response_text, lang_key, language_name)
 
