@@ -289,6 +289,14 @@ export default function HomeScreen() {
                 <View style={styles.drawerMenu}>
                   <TouchableOpacity
                     style={styles.drawerMenuItem}
+                    onPress={() => { closeDrawer(); router.push('/history'); }}
+                  >
+                    <Ionicons name="time-outline" size={20} color={colors.textSecondary} />
+                    <Text style={[styles.drawerMenuText, { color: colors.textPrimary }]}>My History</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.drawerMenuItem}
                     onPress={() => { closeDrawer(); Linking.openURL(FEEDBACK_URL); }}
                   >
                     <Ionicons name="chatbubble-outline" size={20} color={colors.textSecondary} />

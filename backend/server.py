@@ -1294,7 +1294,7 @@ async def check_claim(request: Request, body: CheckRequest):
             upsert=True
         )
 
-        # Log usage with platform tag and email (if authenticated)
+        # Log usage with platform tag, email, and result summary (for history)
         if device_id:
             device_doc = await devices_collection.find_one({"device_id": device_id})
             logged_email = None
@@ -1308,6 +1308,10 @@ async def check_claim(request: Request, body: CheckRequest):
                 "url_checked": url,
                 "language_code": language_code,
                 "platform": platform,
+                # History fields
+                "claim": result.get("claim", ""),
+                "verdict": result.get("verdict", ""),
+                "confidence": result.get("confidence", 0),
             })
 
         return response
@@ -1320,6 +1324,28 @@ async def check_claim(request: Request, body: CheckRequest):
             status_code=500,
             detail={"error": "processing_error", "message": "An internal error occurred. Please try again later."}
         )
+
+@api_router.get("/history")
+async def get_history(request: Request, _: str = Depends(verify_api_key)):
+    """Return the last 50 checks for this device/account."""
+    device_id = request.headers.get("X-Device-Id", "")
+    if not device_id:
+        raise HTTPException(status_code=400, detail="Missing X-Device-Id header")
+
+    device = await devices_collection.find_one({"device_id": device_id})
+    is_auth = bool(device and (device.get("google_id") or device.get("admin_email")))
+    email = (device.get("google_email") or device.get("admin_email") or "").lower() if device else ""
+
+    # For authenticated users query by email, for anon by device_id
+    if is_auth and email:
+        query = {"email": email, "claim": {"$exists": True, "$ne": ""}}
+    else:
+        query = {"device_id": device_id, "claim": {"$exists": True, "$ne": ""}}
+
+    cursor = usage_collection.find(query, {"_id": 0, "url_checked": 1, "platform": 1, "timestamp": 1, "claim": 1, "verdict": 1, "confidence": 1}).sort("timestamp", -1).limit(50)
+    items = await cursor.to_list(length=50)
+    return {"history": items}
+
 
 # Include the router in the main app
 app.include_router(api_router)
